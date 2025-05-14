@@ -27,7 +27,7 @@ services:
     environment:
       DEBUG: 1
       SECRET_KEY: "insecure-secret-key"
-      DJANGO_ALLOWED_HOSTS: localhost 127.0.0.1 [::1]
+      DJANGO_ALLOWED_HOSTS: localhost 127.0.0.1 89.36.211.235
       DATABASE_URL: postgres://postgres:admin@db:5432/Open_Landscapes
 
 volumes:
