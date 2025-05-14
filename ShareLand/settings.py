@@ -83,7 +83,7 @@ DATABASES = {
         'NAME': 'Open_Landscapes',
         'USER': 'postgres',
         'PASSWORD': 'admin',
-        'HOST': 'localhost',
+        'HOST': 'db',
         'PORT': '5432',
     }
 }
