@@ -1,0 +1,205 @@
+{% extends "frontend/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <div class="content-section pt-3 shadow">
+        <h4 class="mb-3">Inserimento Nuovo Sito</h4>
+        <form method="POST">
+            {% csrf_token %}
+
+            <ul class="nav nav-tabs" id="siteTab" role="tablist">
+                <li class="nav-item"><a class="nav-link active" id="general-tab" data-bs-toggle="tab" href="#general"
+                                        role="tab">General Info</a></li>
+                <li class="nav-item"><a class="nav-link" id="positioning-tab" data-bs-toggle="tab" href="#positioning"
+                                        role="tab">Positioning</a></li>
+                <li class="nav-item"><a class="nav-link" id="landscape-tab" data-bs-toggle="tab" href="#landscape"
+                                        role="tab">Landscape</a></li>
+                <li class="nav-item"><a class="nav-link" id="interpretation-tab" data-bs-toggle="tab"
+                                        href="#interpretation" role="tab">Interpretation</a></li>
+                <li class="nav-item"><a class="nav-link" id="relationship-tab" data-bs-toggle="tab" href="#relationship"
+                                        role="tab">Site-Environment</a></li>
+                <li class="nav-item"><a class="nav-link" id="research-tab" data-bs-toggle="tab" href="#research"
+                                        role="tab">Research History</a></li>
+                <li class="nav-item"><a class="nav-link" id="documentation-tab" data-bs-toggle="tab"
+                                        href="#documentation" role="tab">Documentation</a></li>
+                <li class="nav-item"><a class="nav-link" id="notes-tab" data-bs-toggle="tab" href="#notes" role="tab">Notes</a>
+                </li>
+            </ul>
+
+            <div class="tab-content mt-3" id="siteTabContent">
+
+                <div class="tab-pane fade show active" id="general" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ form.site_name|as_crispy_field }}
+                            {{ form.id_region|as_crispy_field }}
+                            {{ form.id_province|as_crispy_field }}
+                            {{ form.id_municipality|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.ancient_place_name|as_crispy_field }}
+                            {{ form.contemporary_place_name|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.description|as_crispy_field }}
+                            {{ form.lat|as_crispy_field }}
+                            {{ form.lon|as_crispy_field }}
+                            {{ form.elevation|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="positioning" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-4">{{ form.id_positioning_mode|as_crispy_field }}</div>
+                        <div class="col-md-4">{{ form.id_base_map|as_crispy_field }}</div>
+                        <div class="col-md-4">{{ form.id_positional_accuracy|as_crispy_field }}</div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="landscape" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-4">{{ form.id_physiography|as_crispy_field }}</div>
+                        <div class="col-md-4">{{ form.additional_topography|as_crispy_field }}</div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="interpretation" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-4">{{ form.functional_class|as_crispy_field }}</div>
+                        <div class="col-md-4">{{ form.typology|as_crispy_field }}</div>
+                        <div class="col-md-4">{{ form.typology_detail|as_crispy_field }}</div>
+                        <div class="col-md-4">{{ form.chronology|as_crispy_field }}</div>
+                        <div class="col-md-4">{{ form.chronology_certainty_level|as_crispy_field }}</div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="relationship" role="tabpanel">
+                    <div class="row">
+                        <div class="col-12">
+                            <h5>Rapporto Sito-Ambiente</h5>
+                            <p class="text-muted">
+                                Descrivi la relazione tra il sito archeologico e l'ambiente circostante, incluse
+                                eventuali caratteristiche naturali o antropiche rilevanti.
+                            </p>
+                            {{ form.site_environment_relationship|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="research" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-4">{{ form.id_first_discovery_method|as_crispy_field }}</div>
+                        <div class="col-md-4">{{ form.investigation_type|as_crispy_field }}</div>
+                        <div class="col-md-4">{{ form.project_name|as_crispy_field }}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <h6>Periodo</h6>
+                            {{ form.periodo|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="documentation" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ form.title|as_crispy_field }}
+                            {{ form.author|as_crispy_field }}
+                            {{ form.year|as_crispy_field }}
+                            {{ form.doi|as_crispy_field }}
+                            {{ form.types|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.name|as_crispy_field }}
+                            {{ form.documentation_chronology|as_crispy_field }}
+                            {{ form.source_type|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.documentation_name|as_crispy_field }}
+                            {{ form.documentation_author|as_crispy_field }}
+                            {{ form.documentation_year|as_crispy_field }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        {{ form.image_type|as_crispy_field }}
+                        {{ form.image_scale|as_crispy_field }}
+                    </div>
+                </div>
+
+
+                <div class="tab-pane fade" id="notes" role="tabpanel">
+                    <div class="row">
+                        <div class="col-12">
+                            <h5>Notes</h5>
+                            <p class="text-muted">
+                                Riporta quia altre informazioni che non trovano spazio nei campi precedenti. Vanno bene
+                                appunti, dubbi, riflessioni...
+                            </p>
+                            {{ form.notes|as_crispy_field }}
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="text-end mt-4">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="fas fa-save"></i> Salva
+                    </button>
+                </div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const fc = document.getElementById('id_functional_class');
+            const typology = document.getElementById('id_typology');
+            const detail = document.getElementById('id_typology_detail');
+            const region = document.getElementById('id_id_region');
+            const province = document.getElementById('id_id_province');
+            const municipality = document.getElementById('id_id_municipality');
+
+            fc.addEventListener('change', function () {
+                fetch(`/ajax/load-typologies/?functional_class=${fc.value}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        typology.innerHTML = '<option value="">---------</option>';
+                        detail.innerHTML = '<option value="">---------</option>';
+                        data.forEach(opt => typology.innerHTML += `<option value="${opt.id}">${opt.desc_typology}</option>`);
+                    });
+            });
+
+            typology.addEventListener('change', function () {
+                fetch(`/ajax/load-typology-details/?typology=${typology.value}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        detail.innerHTML = '<option value="">---------</option>';
+                        data.forEach(opt => detail.innerHTML += `<option value="${opt.id}">${opt.desc_typology_detail}</option>`);
+                    });
+            });
+
+            region.addEventListener('change', function () {
+                fetch(`/ajax/load-provinces/?region=${region.value}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        province.innerHTML = '<option value="">---------</option>';
+                        data.forEach(opt => province.innerHTML += `<option value="${opt.id}">${opt.denominazione_provincia}</option>`);
+                        municipality.innerHTML = '<option value="">---------</option>';
+                    });
+            });
+
+            // Province → Municipalities
+            province.addEventListener('change', function () {
+                const provinceId = this.value;
+                fetch(`/ajax/load-municipalities/?province=${provinceId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        municipality.innerHTML = '<option value="">---------</option>';
+                        data.forEach(item => {
+                            municipality.innerHTML += `<option value="${item.id}">${item.denominazione_comune}</option>`;
+                        });
+                    });
+            });
+        });
+    </script>
+{% endblock %}

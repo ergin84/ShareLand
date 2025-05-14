@@ -1,0 +1,58 @@
+{% extends "frontend/base.html" %}
+{% load static %}
+{% block content %}
+
+<style>
+  html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+  }
+
+  .landing-section {
+      background-image: url('{% static "images/bg.jpg" %}');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: white;
+  }
+
+  .landing-overlay {
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 50px;
+      border-radius: 10px;
+  }
+
+  .landing-buttons .btn {
+      margin: 10px;
+      min-width: 150px;
+  }
+</style>
+
+
+<div class="landing-section">
+    <div class="landing-overlay shadow-lg">
+        <h1 class="display-4">Welcome to SHAReLAND</h1>
+        <p class="lead mt-3">
+            Discover, submit, and manage archaeological research data with ease. Join the community of researchers shaping the digital heritage of tomorrow.
+        </p>
+
+        {% if not user.is_authenticated %}
+        <div class="landing-buttons mt-4">
+            <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg"><i class="fas fa-sign-in-alt"></i> Log In</a>
+            <a href="{% url 'register' %}" class="btn btn-primary btn-lg"><i class="fas fa-user-plus"></i> Register</a>
+        </div>
+        {% else %}
+        <p class="mt-4">
+            <a href="{% url 'profile' %}" class="btn btn-success btn-lg"><i class="fas fa-user"></i> Go to your dashboard</a>
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock content %}

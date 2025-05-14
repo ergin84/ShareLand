@@ -1,0 +1,91 @@
+{% extends "frontend/base.html" %}
+{% block content %}
+<div class="jumbotron mt-3 shadow-lg">
+  <article class="media content-section shadow ">
+    <a href="{{ object.submitted_by.profile.image.url }}" target="_blank">
+      <img src="{{ object.submitted_by.profile.image.url }}" alt="" class="article-img rounded-circle img-thumbnail img-fluid">
+    </a>
+    <div class="media-body">
+      <div>
+        <div class="d-flex justify-content-between">
+          <a class="mr-2 mt-0 mb-0 text-dark" href="{% url 'user-researches' object.submitted_by.username %}">
+            <h3>{{ object.submitted_by }}</h3>
+          </a>
+          <small class="text-muted text-align-right">{{ object.year }}</small>
+        </div>
+
+
+        <hr>
+
+        {% if object.submitted_by == user %}
+          <div>
+            <a class="btn btn-secondary btn-sm mt-1 mb-1" href="{% url 'research-update' object.id %}">Update</a>
+            <a class="btn btn-danger btn-sm mt-1 mb-1" href="{% url 'research-delete' object.id %}">Delete</a>
+          </div>
+        {% endif %}
+      </div>
+
+      <div>
+        {% if object.file %}
+          {% if object.extension == '.jpg' or object.extension == 'jpeg' or object.extension == 'png' %}
+            <a href="{{ object.file.url }}" download><img src="{{ object.file.url }}" alt="" class="img-fluid"></a>
+            <a href="{{ object.file.url }}" download class="text-dark"><h5>{{ object.file }}</h5></a>
+          {% elif object.extension == '.mp4' %}
+            <div class="embed-responsive embed-responsive-16by9">
+              <video class="vjs-tech" preload="auto" controls>
+                <source src="{{ object.file.url }}" type="video/mp4">
+              </video>
+            </div>
+            <a href="{{ object.file.url }}" download class="text-dark"><h5>{{ object.file }}</h5></a>
+          {% else %}
+            <a href="{{ object.file.url }}" download class="text-dark"><h5>{{ object.file }}</h5></a>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <h2>{{ object.title }}</h2>
+      <p class="article-content">{{ object.abstract }}</p>
+      <p><strong>Type:</strong> {{ object.type }}</p>
+      <p><strong>Keywords:</strong> {{ object.keywords }}</p>
+      <p><strong>Geometry:</strong> {{ object.geometry }}</p>
+
+      <hr class="my-4">
+<div>
+ <h5 class="mb-3">Siti collegati a questa ricerca:</h5>
+{% with site_research_list=object.siteresearch_set.all %}
+  {% if site_research_list %}
+    <ul class="list-group">
+      {% for link in site_research_list %}
+        {% if link.id_site %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+  <div>
+    <strong>{{ link.id_site.site_name }}</strong> – {{ link.id_site.locality_name }}
+  </div>
+  <div>
+    <a href="{% url 'site_update' link.id_site.id %}" class="btn btn-sm btn-outline-primary me-2">Modifica</a>
+    <a href="{% url 'site_delete' link.id_site.id %}" class="btn btn-sm btn-outline-danger">Elimina</a>
+  </div>
+</li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted">Nessun sito collegato a questa ricerca.</p>
+  {% endif %}
+{% endwith %}
+
+</div>
+
+      <div class="text-center">
+        <h5 class="mb-3">Azioni successive</h5>
+        <a href="{% url 'site_create' %}?research_id={{ object.id }}" class="btn btn-outline-success me-2">
+          <i class="fas fa-map-marker-alt"></i> Aggiungi un Sito
+        </a>
+        <a href="{% url 'evidence_create' %}?research_id={{ object.id }}" class="btn btn-outline-secondary ms-2">
+          <i class="fas fa-university"></i> Aggiungi un'Evidenza
+        </a>
+      </div>
+    </div>
+  </article>
+</div>
+{% endblock content %}

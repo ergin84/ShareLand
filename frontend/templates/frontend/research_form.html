@@ -1,0 +1,347 @@
+{% extends "frontend/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+    <div class="content-section pt-2 mt-3 shadow-lg">
+        <form action="" method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <fieldset class="form-group">
+
+                <!-- === Autore principale === -->
+                <legend class="border-bottom mb-4">1. CHI - Autori della Ricerca</legend>
+
+                <div class="form-group">
+                    <label>Sei l'autore principale della ricerca?</label><br>
+                    <input type="radio" id="author-yes" name="is_self_author" value="yes" checked>
+                    <label for="author-yes">Sì</label><br>
+                    <input type="radio" id="author-no" name="is_self_author" value="no">
+                    <label for="author-no">No</label>
+                </div>
+
+                <div id="author-fields" style="display:none;">
+                    <label for="author-search">Cerca autore principale</label>
+                    <input type="text" class="form-control" id="author-search" name="author_search"
+                           placeholder="Nome autore...">
+                    <input type="hidden" id="author-id" name="author_id">
+                    <div id="author-suggestions" class="list-group"></div>
+
+                    <div id="new-author-fields" class="mt-3" style="display:none;">
+                        <label>Inserisci nuovo autore</label>
+                        <input type="text" name="author_name" class="form-control mb-1" placeholder="Nome">
+                        <input type="text" name="author_surname" class="form-control mb-1" placeholder="Cognome">
+                        <input type="text" name="affiliation" class="form-control mb-1" placeholder="Affiliazione">
+                        <input type="text" name="orcid" class="form-control mb-1" placeholder="ORCID">
+                        <input type="email" name="contact_email" class="form-control mb-1"
+                               placeholder="Email di contatto">
+                    </div>
+                </div>
+
+                <!-- === Co-autori === -->
+                <legend class="border-bottom mt-4 mb-3">Co-autori</legend>
+                <div id="coauthors-container"></div>
+                <button type="button" id="add-coauthor" class="btn btn-outline-secondary btn-sm">+ Aggiungi un altro
+                    co-autore
+                </button>
+
+
+                <!-- === SEZIONE 2: COSA === -->
+                <legend class="border-bottom mt-4 mb-4">2. COSA - Dettagli della Ricerca</legend>
+                {{ form|crispy }}
+
+                <!-- === SEZIONE 3: DOVE === -->
+                <legend class="border-bottom mt-4 mb-4">3. DOVE – Area di Indagine</legend>
+
+                <div class="form-group">
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+                            data-bs-target="#uploadShapefileModal">
+                        Carica shapefile
+                    </button>
+
+                    <button type="button" class="btn btn-outline-success" data-bs-toggle="modal"
+                            data-bs-target="#drawMapModal">
+                        Seleziona area su mappa
+                    </button>
+                </div>
+
+                <small class="text-muted">La geometria verrà salvata automaticamente dal disegno sulla mappa o dal file
+                    shapefile caricato.</small>
+
+
+                <!-- Modal Upload Shapefile con mappa -->
+                <div class="modal fade" id="uploadShapefileModal" tabindex="-1" aria-labelledby="uploadShapefileLabel"
+                     aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content shadow">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="uploadShapefileLabel">Carica uno shapefile</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                        aria-label="Chiudi"></button>
+                            </div>
+                            <div class="modal-body">
+                                <input type="file" name="shapefile" id="shapefileInput" accept=".zip"
+                                       class="form-control mb-3">
+                                <small>Carica un file .zip contenente .shp, .shx e .dbf</small>
+                                <div id="shapefileMap"
+                                     style="height: 400px; border: 1px solid #ccc; margin-top: 15px;"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-primary" id="acceptShapefileArea">Visualizza
+                                    Shape
+                                </button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Mappa -->
+                <div class="modal fade" id="drawMapModal" tabindex="-1" aria-labelledby="drawMapLabel"
+                     aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content shadow">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="drawMapLabel">Disegna l’area sulla mappa</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                        aria-label="Chiudi"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="map" style="height: 500px; border: 1px solid #ccc;"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- === SEZIONE 4: CONTESTO === -->
+                <legend class="border-bottom mt-4 mb-4">4. CONTESTO – Siti e/o Evidenze Archeologiche</legend>
+
+                <p class="text-muted">
+                    Dopo aver salvato la ricerca, potrai accedere ai dettagli per aggiungere un sito o
+                    un'evidenza archeologica.
+                </p>
+
+
+            </fieldset>
+
+            <div class="form-group">
+                <button class="btn btn-outline-primary" type="submit">
+                    <i class="fas fa-save"></i> Salva
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const radios = document.getElementsByName('is_self_author');
+            const authorFields = document.getElementById('author-fields');
+            const authorSearch = document.getElementById('author-search');
+            const authorSuggestions = document.getElementById('author-suggestions');
+            const authorIdField = document.getElementById('author-id');
+            const newAuthorFields = document.getElementById('new-author-fields');
+
+            const toggleAuthorFields = () => {
+                const selected = Array.from(radios).find(radio => radio.checked);
+                if (selected && selected.value === 'no') {
+                    authorFields.style.display = 'block';
+                } else {
+                    authorFields.style.display = 'none';
+                    newAuthorFields.style.display = 'none';
+                    authorIdField.value = '';
+                }
+            };
+
+            radios.forEach(radio => {
+                radio.addEventListener('change', toggleAuthorFields);
+            });
+            toggleAuthorFields();
+
+            authorSearch.addEventListener('input', () => {
+                const query = authorSearch.value;
+                if (query.length < 2) {
+                    authorSuggestions.innerHTML = '';
+                    newAuthorFields.style.display = 'none';
+                    return;
+                }
+
+                fetch(`/ajax/search-authors/?q=${encodeURIComponent(query)}`)
+                    .then(res => res.json())
+                    .then(authors => {
+                        authorSuggestions.innerHTML = '';
+                        if (authors.length === 0) {
+                            newAuthorFields.style.display = 'block';
+                        } else {
+                            newAuthorFields.style.display = 'none';
+                            authors.forEach(a => {
+                                const item = document.createElement('a');
+                                item.className = 'list-group-item list-group-item-action';
+                                item.textContent = `${a.name} ${a.surname} (${a.email})`;
+                                item.onclick = () => {
+                                    authorSearch.value = `${a.name} ${a.surname}`;
+                                    authorIdField.value = a.id;
+                                    authorSuggestions.innerHTML = '';
+                                    newAuthorFields.style.display = 'none';
+                                };
+                                authorSuggestions.appendChild(item);
+                            });
+                        }
+                    });
+            });
+
+            // === COAUTHORS ===
+            let coauthorCount = 0;
+            document.getElementById('add-coauthor').addEventListener('click', () => {
+                const index = coauthorCount++;
+                const block = document.createElement('div');
+                block.className = 'coauthor-block form-group mb-3';
+                block.innerHTML = `
+            <label>Coautore ${index + 1}</label>
+            <input type="text" class="form-control coauthor-search" name="coauthor_search_${index}" placeholder="Cerca co-autore per cognome...">
+            <input type="hidden" name="coauthor_id_${index}" class="coauthor-id">
+            <div class="coauthor-suggestions list-group mt-1"></div>
+            <div class="new-coauthor-fields mt-2" style="display:none;">
+                <input type="text" name="coauthor_name_${index}" class="form-control mb-1" placeholder="Nome">
+                <input type="text" name="coauthor_surname_${index}" class="form-control mb-1" placeholder="Cognome">
+                <input type="text" name="coauthor_affiliation_${index}" class="form-control mb-1" placeholder="Affiliazione">
+                <input type="text" name="coauthor_orcid_${index}" class="form-control mb-1" placeholder="ORCID">
+                <input type="email" name="coauthor_email_${index}" class="form-control mb-1" placeholder="Email di contatto">
+            </div>
+        `;
+                document.getElementById('coauthors-container').appendChild(block);
+
+                const searchInput = block.querySelector('.coauthor-search');
+                const suggestionsBox = block.querySelector('.coauthor-suggestions');
+                const newFields = block.querySelector('.new-coauthor-fields');
+                const hiddenIdField = block.querySelector('.coauthor-id');
+
+                searchInput.addEventListener('input', function () {
+                    const query = this.value;
+                    if (query.length < 2) {
+                        suggestionsBox.innerHTML = '';
+                        newFields.style.display = 'none';
+                        hiddenIdField.value = '';
+                        return;
+                    }
+                    fetch(`/ajax/search-authors/?q=${encodeURIComponent(query)}`)
+                        .then(res => res.json())
+                        .then(authors => {
+                            suggestionsBox.innerHTML = '';
+                            if (authors.length === 0) {
+                                newFields.style.display = 'block';
+                                hiddenIdField.value = '';
+                                return;
+                            }
+                            newFields.style.display = 'none';
+                            authors.forEach(a => {
+                                const item = document.createElement('a');
+                                item.className = 'list-group-item list-group-item-action';
+                                item.textContent = `${a.name} ${a.surname} (${a.email})`;
+                                item.onclick = () => {
+                                    searchInput.value = `${a.name} ${a.surname}`;
+                                    hiddenIdField.value = a.id;
+                                    suggestionsBox.innerHTML = '';
+                                    newFields.style.display = 'none';
+                                };
+                                suggestionsBox.appendChild(item);
+                            });
+                        });
+                });
+            });
+
+            // Add first co-author field
+            document.getElementById('add-coauthor').click();
+            // Modal mappa disegno
+            const mapModal = document.getElementById('drawMapModal');
+            let mapInitialized = false;
+
+            mapModal.addEventListener('shown.bs.modal', () => {
+                if (!mapInitialized) {
+                    const map = L.map('map').setView([43.7696, 11.2558], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap contributors'
+                    }).addTo(map);
+                    map.invalidateSize();
+
+                    const drawnItems = new L.FeatureGroup();
+                    map.addLayer(drawnItems);
+
+                    const drawControl = new L.Control.Draw({
+                        draw: {
+                            polygon: true,
+                            polyline: false,
+                            rectangle: true,
+                            circle: false,
+                            marker: false,
+                            circlemarker: false
+                        },
+                        edit: {featureGroup: drawnItems}
+                    });
+                    map.addControl(drawControl);
+
+                    map.on(L.Draw.Event.CREATED, function (e) {
+                        const layer = e.layer;
+                        drawnItems.clearLayers();
+                        drawnItems.addLayer(layer);
+
+                        const geojson = layer.toGeoJSON();
+                        const coordinates = geojson.geometry.coordinates[0];
+                        const tupleString = coordinates.map(coord => `(${coord[0].toFixed(6)},${coord[1].toFixed(6)})`).join(',');
+                        const formatted = `(${tupleString})`;
+
+                        const geometryInput = document.querySelector('[name="geometry"]');
+                        if (geometryInput) geometryInput.value = formatted;
+                    });
+
+                    mapInitialized = true;
+                }
+            });
+
+            // Shapefile Upload AJAX + preview sulla mappa
+            const shapefileInput = document.getElementById('shapefileInput');
+            const previewButton = document.getElementById('acceptShapefileArea');
+            const geometryField = document.getElementById('geometry');
+            let shpMap;
+
+            document.getElementById('uploadShapefileModal').addEventListener('shown.bs.modal', () => {
+                if (!shpMap) {
+                    shpMap = L.map('shapefileMap').setView([43.7696, 11.2558], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap'
+                    }).addTo(shpMap);
+                    shpMap.invalidateSize();
+                }
+            });
+
+            previewButton.addEventListener('click', () => {
+                const file = shapefileInput.files[0];
+                if (!file) return alert('Carica un file .zip');
+
+                const formData = new FormData();
+                formData.append('shapefile', file);
+
+                fetch('/api/preview-shapefile/', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.error) return alert(data.error);
+
+                        geometryField.value = data.geometry;
+
+                        const coords = data.geometry.match(/\((-?\d+\.\d+),(-?\d+\.\d+)\)/g)
+                            .map(c => c.replace(/[()]/g, '').split(',').map(Number));
+
+                        const polygon = L.polygon(coords.map(c => [c[1], c[0]])).addTo(shpMap);
+                        shpMap.fitBounds(polygon.getBounds());
+
+                        const modalEl = document.getElementById('uploadShapefileModal');
+                        const modal = new bootstrap.Modal(modalEl);
+                        modal.hide();
+                    })
+                    .catch(err => alert('Errore: ' + err));
+            });
+        });
+    </script>
+{% endblock content %}
