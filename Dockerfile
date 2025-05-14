@@ -1,17 +1,27 @@
-FROM python:3.12-alpine
+FROM python:3.12-slim
 
-LABEL maintainer="Ergin Mehmeti <ergin.mehmeti@logos-ri.eu>"
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gdal-bin \
+    libgdal-dev \
+    python3-dev \
+    gcc \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-ENV PYTHONUNBUFFERED=1
+# Set GDAL config path (optional but helps some builds)
+ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
+ENV C_INCLUDE_PATH=/usr/include/gdal
 
-WORKDIR /code
+# Set working directory
+WORKDIR /app
 
+# Copy and install Python deps
 COPY requirements.txt .
-
+RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
+# Copy source code
 COPY . .
 
-EXPOSE 8080
-
-CMD ["python3","manage.py","runserver", "0.0.0.0:8080"]
+CMD ["gunicorn", "projectname.wsgi:application", "--bind", "0.0.0.0:8000"]
