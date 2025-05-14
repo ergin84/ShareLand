@@ -24,4 +24,4 @@ RUN pip install -r requirements.txt
 # Copy source code
 COPY . .
 
-CMD ["gunicorn", "projectname.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["python3", "manage.py", "runserver"]
