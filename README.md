@@ -17,7 +17,6 @@ SHAReLAND is a Django-based web platform designed for the collection, documentat
 * Interactive 2D map visualization (Leaflet)
 * Import of shapefiles and direct drawing of geometries on map
 * AJAX-based dynamic form inputs for region/province/municipality
-* Multilingual interface (Italian/English)
 
 ## Technologies
 
