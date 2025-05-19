@@ -6,29 +6,25 @@ services:
     restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data/
-    environment:
-      POSTGRES_DB: Open_Landscapes
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: admin
+    env_file:
+      - .env
     ports:
       - "5432:5432"
 
   django:
-    image: django-docker:0.0.1
     build: .
     command: >
-      sh -c "python manage.py runserver 0.0.0.0:8080"
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn ShareLand.wsgi:application --bind 0.0.0.0:8080"
     volumes:
-      - .:/code
+      - .:/app
     ports:
       - "8080:8080"
     depends_on:
       - db
-    environment:
-      DEBUG: 1
-      SECRET_KEY: "insecure-secret-key"
-      DJANGO_ALLOWED_HOSTS: localhost 127.0.0.1 89.36.211.235
-      DATABASE_URL: postgres://postgres:admin@db:5432/Open_Landscapes
+    env_file:
+      - .env
 
 volumes:
   postgres_data:

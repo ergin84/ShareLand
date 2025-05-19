@@ -9,14 +9,14 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Set GDAL config path (optional but helps some builds)
+# GDAL environment variables
 ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
 ENV C_INCLUDE_PATH=/usr/include/gdal
 
 # Set working directory
 WORKDIR /app
 
-# Copy and install Python deps
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
@@ -24,4 +24,11 @@ RUN pip install -r requirements.txt
 # Copy source code
 COPY . .
 
-CMD ["python3", "manage.py", "runserver"]
+# Collect static files (only for production)
+RUN python manage.py collectstatic --noinput
+
+# Expose port
+EXPOSE 8000
+
+# Production entrypoint (change below if using ASGI)
+CMD ["gunicorn", "ShareLand.wsgi:application", "--bind", "0.0.0.0:8000"]

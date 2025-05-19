@@ -18,6 +18,7 @@ class Anagraphic(models.Model):
     password = models.TextField(blank=True, null=True)
     contact_email = models.TextField(blank=True, null=True)
 
+
     class Meta:
         db_table = 'anagraphic'
         db_table_comment = 'Ogni utente registrato (anagraphic) può essere anche un autore, ma non è obbligatorio.\t\t\nOgni autore (author) può essere un utente registrato, ma può anche essere una persona esterna al sistema.\t\t\nIl rapporto tra le due tabelle è quindi uno a uno opzionale (1:1 opzionale)\t\t\n'
@@ -286,8 +287,8 @@ class ArchaeologicalEvidence(models.Model):
     description = models.TextField(blank=True, null=True)
     id_country = models.ForeignKey(Country, models.DO_NOTHING, db_column='id_country', blank=True, null=True)
     id_region = models.ForeignKey(Region, models.DO_NOTHING, db_column='id_region', blank=True, null=True)
-    id_municipality = models.ForeignKey(Municipality, models.DO_NOTHING, db_column='id_municipality', blank=True, )
-    id_physiography = models.ForeignKey(Physiography, models.DO_NOTHING, db_column='id_physiography', blank=True, )
+    id_municipality = models.ForeignKey(Municipality, models.DO_NOTHING, db_column='id_municipality', blank=True, null=True )
+    id_physiography = models.ForeignKey(Physiography, models.DO_NOTHING, db_column='id_physiography', blank=True, null=True )
     id_positioning_mode = models.ForeignKey(PositioningMode, models.DO_NOTHING, db_column='id_positioning_mode', )
     id_positional_accuracy = models.ForeignKey(PositionalAccuracy, models.DO_NOTHING,
                                                db_column='id_positional_accuracy', )
