@@ -1,0 +1,28 @@
+{% extends "frontend/base.html" %}
+{% block content %}
+    <div class="container mt-4">
+        <div class="card shadow-lg">
+            <div class="card-body">
+                <h2 class="card-title">Evidenza #{{ object.id }}</h2>
+
+                {% if object.description %}
+                    <p><strong>Descrizione:</strong> {{ object.description }}</p>
+                {% endif %}
+
+                <p><strong>Tipologia:</strong> {{ object.id_archaeological_evidence_typology }}</p>
+                <p><strong>Quota:</strong> {{ object.elevation }} m</p>
+                <p><strong>Coordinate:</strong> Lat {{ object.lat }} | Lon {{ object.lon }}</p>
+                <p><strong>Regione:</strong> {{ object.id_region }}</p>
+                <p><strong>Provincia:</strong> {{ object.id_province }}</p>
+                <p><strong>Comune:</strong> {{ object.id_municipality }}</p>
+                <p><strong>Località:</strong> {{ object.locality_name }}</p>
+
+                <hr>
+                <div class="d-flex justify-content-end">
+                    <a href="{% url 'evidence_update' object.id %}" class="btn btn-outline-primary me-2">Modifica</a>
+                    <a href="{% url 'evidence_delete' object.id %}" class="btn btn-outline-danger">Elimina</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

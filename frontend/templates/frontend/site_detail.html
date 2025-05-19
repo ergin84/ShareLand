@@ -1,0 +1,51 @@
+{% extends "frontend/base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="card shadow-lg">
+    <div class="card-body">
+      <h2 class="card-title">{{ object.site_name }}</h2>
+      <p><strong>Località:</strong> {{ object.locality_name }}</p>
+      <p><strong>Regione:</strong> {{ object.id_region }}</p>
+      <p><strong>Provincia:</strong> {{ object.id_province }}</p>
+      <p><strong>Comune:</strong> {{ object.id_municipality }}</p>
+      <p><strong>Quota:</strong> {{ object.elevation }} m s.l.m.</p>
+      <p><strong>Coordinate:</strong> Lat {{ object.lat }}, Lon {{ object.lon }}</p>
+      <p><strong>Relazione ambiente-sito:</strong> {{ object.site_environment_relationship }}</p>
+
+      <hr>
+      <div class="d-flex justify-content-between">
+        <div>
+          <a href="{% url 'site_update' object.id %}" class="btn btn-outline-primary">Modifica</a>
+          <a href="{% url 'site_delete' object.id %}" class="btn btn-outline-danger">Elimina</a>
+        </div>
+        <a href="{% url 'evidence_create' %}?site_id={{ object.id }}" class="btn btn-outline-success">
+          + Aggiungi Evidenza
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-5">
+    <h4>Evidenze Archeologiche associate</h4>
+    {% with links=object.sitearchevidence_set.all %}
+      {% if links %}
+        <ul class="list-group">
+          {% for link in links %}
+            {% with ev=link.id_archaeological_evidence %}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>{{ ev.description|default:"(senza descrizione)" }}</span>
+                <span class="btn-group">
+                  <a href="{% url 'evidence_update' ev.id %}" class="btn btn-sm btn-outline-primary">Modifica</a>
+                  <a href="{% url 'evidence_delete' ev.id %}" class="btn btn-sm btn-outline-danger">Elimina</a>
+                </span>
+              </li>
+            {% endwith %}
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted">Nessuna evidenza collegata a questo sito.</p>
+      {% endif %}
+    {% endwith %}
+  </div>
+</div>
+{% endblock %}

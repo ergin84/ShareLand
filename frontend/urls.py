@@ -26,6 +26,10 @@ urlpatterns = [
     path('api/preview-shapefile/', views.preview_shapefile, name='preview_shapefile'),
     path('site_create/', views.SiteCreateView.as_view(), name='site_create'),
     path('evidence_create/', views.EvidenceCreateView.as_view(), name='evidence_create'),
+    path('evidence/<int:pk>/update/', views.EvidenceUpdateView.as_view(), name='evidence_update'),
+    path('evidence/<int:pk>/delete/', views.EvidenceDeleteView.as_view(), name='evidence_delete'),
+    path('evidence_list/', views.EvidenceListView.as_view(), name='evidence_list'),
+    path('evidence/<int:pk>/detail/', views.EvidenceDetailView.as_view(), name='evidence_detail'),
     path('ajax/load-typologies/', views.load_typologies, name='ajax_load_typologies'),
     path('ajax/load-typology-details/', views.load_typology_details, name='ajax_load_typology_details'),
     path('ajax/load-provinces/', views.load_provinces, name='ajax_load_provinces'),
@@ -35,6 +39,7 @@ urlpatterns = [
     path('site/<int:pk>/update/', SiteUpdateView.as_view(), name='site_update'),
     path('site/<int:pk>/delete/', SiteDeleteView.as_view(), name='site_delete'),
     path('ajax/search-authors/', views.search_authors, name='ajax_search_authors'),
+
 
 
 

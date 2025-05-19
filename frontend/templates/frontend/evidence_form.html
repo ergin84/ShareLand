@@ -1,0 +1,456 @@
+{% extends "frontend/base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+    <div class="container mt-4">
+        <h2 class="mb-4">Nuova Evidenza Archeologica</h2>
+        <form method="post">
+            {% csrf_token %}
+            <ul class="nav nav-tabs mb-3" id="evidenceTab" role="tablist">
+                <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#general">General Info</a>
+                </li>
+                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#desc">Description</a></li>
+                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#pos">Positioning</a></li>
+                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#landscape">Landscape</a></li>
+                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#research">Research History</a></li>
+                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#docs">Documentation</a></li>
+                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#notes">Notes</a></li>
+            </ul>
+
+            <div class="tab-content">
+
+                <!-- Tab 1: General Info -->
+                <div class="tab-pane fade show active" id="general" role="tabpanel">
+                    <div class="row">
+
+                        <!-- Left column: Location fields -->
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.id_country|as_crispy_field }}
+                                {{ form.id_region|as_crispy_field }}
+                                {{ form.id_province|as_crispy_field }}
+                                {{ form.id_municipality|as_crispy_field }}
+                                {{ form.locality_name|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <!-- Right column: Coordinates and Elevation -->
+                        <div class="col-md-6">
+
+                            <!-- Block: Coordinates -->
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Coordinate</legend>
+                                <div class="row">
+                                    <div class="form-group">
+                                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+                                                data-bs-target="#uploadShapefileModal">
+                                            Carica shapefile
+                                        </button>
+
+                                        <button type="button" class="btn btn-outline-success" data-bs-toggle="modal"
+                                                data-bs-target="#drawMapModal">
+                                            Seleziona area su mappa
+                                        </button>
+                                    </div>
+
+                                    <small class="text-muted">La geometria verrà salvata automaticamente dal disegno
+                                        sulla mappa o dal file
+                                        shapefile caricato.</small>
+                                    <input type="hidden" name="geometry" id="geometry">
+                                    <div class="col-md-6">
+                                        {{ form.lat|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ form.lon|as_crispy_field }}
+                                    </div>
+                                </div>
+                            </fieldset>
+
+                            <!-- Block: Elevation -->
+                            <fieldset class="border rounded p-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Quota (s.l.m.)</legend>
+                                {{ form.elevation|as_crispy_field }}
+                            </fieldset>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Upload Shapefile con mappa -->
+                <div class="modal fade" id="uploadShapefileModal" tabindex="-1" aria-labelledby="uploadShapefileLabel"
+                     aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content shadow">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="uploadShapefileLabel">Carica uno shapefile</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                        aria-label="Chiudi"></button>
+                            </div>
+                            <div class="modal-body">
+                                <input type="file" name="shapefile" id="shapefileInput" accept=".zip"
+                                       class="form-control mb-3">
+                                <small>Carica un file .zip contenente .shp, .shx e .dbf</small>
+                                <div id="shapefileMap"
+                                     style="height: 400px; border: 1px solid #ccc; margin-top: 15px;"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-primary" id="acceptShapefileArea">Visualizza
+                                    Shape
+                                </button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Mappa -->
+                <div class="modal fade" id="drawMapModal" tabindex="-1" aria-labelledby="drawMapLabel"
+                     aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content shadow">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="drawMapLabel">Disegna l’area sulla mappa</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                        aria-label="Chiudi"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="map" style="height: 500px; border: 1px solid #ccc;"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Description -->
+                <div class="tab-pane fade" id="desc" role="tabpanel">
+                    <div class="row">
+
+                        <!-- Left column: Typology -->
+                        <div class="col-md-6">
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Tipologia di evidenza
+                                    archeologica
+                                </legend>
+                                {{ form.id_archaeological_evidence_typology|as_crispy_field }}
+                            </fieldset>
+                        </div>
+
+                        <!-- Right column: Description + Chronology Block -->
+                        <div class="col-md-6">
+                            <!-- Block: Description -->
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Descrizione</legend>
+                                {{ form.description|as_crispy_field }}
+                            </fieldset>
+
+                            <!-- Block: Chronology + Certainty -->
+                            <fieldset class="border rounded p-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Cronologia</legend>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        {{ form.id_chronology|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ form.chronology_certainty_level|as_crispy_field }}
+                                    </div>
+                                </div>
+                            </fieldset>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Tab: Positioning -->
+                <div class="tab-pane fade" id="pos" role="tabpanel">
+                    <div class="row">
+
+                        <!-- Column 1: Modalità di Posizionamento -->
+                        <div class="col-md-4">
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Modalità di posizionamento
+                                </legend>
+                                {{ form.id_positioning_mode|as_crispy_field }}
+                            </fieldset>
+                        </div>
+
+                        <!-- Column 2: Base cartografica -->
+                        <div class="col-md-4">
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Base cartografica</legend>
+                                {{ form.id_base_map|as_crispy_field }}
+                            </fieldset>
+                        </div>
+
+                        <!-- Column 3: Qualità del posizionamento -->
+                        <div class="col-md-4">
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Qualità del posizionamento
+                                </legend>
+                                {{ form.id_positional_accuracy|as_crispy_field }}
+                            </fieldset>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Tab: Landscape -->
+                <div class="tab-pane fade" id="landscape" role="tabpanel">
+                    <div class="row">
+
+                        <!-- Column 1: Fisiografia -->
+                        <div class="col-md-6">
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Fisiografia</legend>
+                                {{ form.id_physiography|as_crispy_field }}
+                            </fieldset>
+                        </div>
+
+                        <!-- Column 2: Riferimenti topografici -->
+                        <div class="col-md-6">
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Riferimenti topografici</legend>
+                                {{ form.additional_topography|as_crispy_field }}
+                            </fieldset>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Tab: Research History -->
+                <div class="tab-pane fade" id="research" role="tabpanel">
+                    <div class="row">
+
+                        <!-- Column 1: Modalità di rinvenimento (prima scoperta) -->
+                        <div class="col-md-6">
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Modalità di rinvenimento (prima
+                                    scoperta)
+                                </legend>
+                                {{ form.id_first_discovery_method|as_crispy_field }}
+                            </fieldset>
+                        </div>
+
+                        <!-- Column 2: Blocco progetto -->
+                        <div class="col-md-6">
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Informazioni progetto</legend>
+                                {{ form.project_name|as_crispy_field }}
+                                {{ form.investigation_type|as_crispy_field }}
+                                {{ form.periodo|as_crispy_field }}
+                            </fieldset>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Tab: Documentation -->
+                <div class="tab-pane fade" id="docs" role="tabpanel">
+                    <div class="row">
+
+                        <!-- Column 1: Bibliografia -->
+                        <div class="col-md-3">
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Bibliografia</legend>
+                                {{ form.title|as_crispy_field }}
+                                {{ form.author|as_crispy_field }}
+                                {{ form.year|as_crispy_field }}
+                                {{ form.doi|as_crispy_field }}
+                                {{ form.tipo|as_crispy_field }}
+                            </fieldset>
+                        </div>
+
+                        <!-- Column 2: Fonti -->
+                        <div class="col-md-3">
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Fonti</legend>
+                                {{ form.name|as_crispy_field }}
+                                {{ form.documentation_chronology|as_crispy_field }}
+                                {{ form.source_type|as_crispy_field }}
+                            </fieldset>
+                        </div>
+
+                        <!-- Column 3: Altra documentazione -->
+                        <div class="col-md-3">
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Altra documentazione</legend>
+                                {{ form.documentation_name|as_crispy_field }}
+                                {{ form.documentation_author|as_crispy_field }}
+                                {{ form.documentation_year|as_crispy_field }}
+                            </fieldset>
+                        </div>
+
+                        <!-- Column 4: Immagini -->
+                        <div class="col-md-3">
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Immagini</legend>
+                                {{ form.image_type|as_crispy_field }}
+                                {{ form.image_scale|as_crispy_field }}
+                            </fieldset>
+                        </div>
+
+                    </div>
+                </div>
+                <!-- Tab: Notes -->
+                <div class="tab-pane fade" id="notes" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <fieldset class="border rounded p-3 mb-3">
+                                <legend class="float-none w-auto px-2 small text-muted">Note</legend>
+                                {{ form.notes|as_crispy_field }}
+                            </fieldset>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <button type="submit" class="btn btn-primary mt-3">Salva Evidenza</button>
+        </form>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+
+            const region = document.getElementById('id_id_region');
+            const province = document.getElementById('id_id_province');
+            const municipality = document.getElementById('id_id_municipality');
+            const latField = document.getElementById('id_lat');
+            const lonField = document.getElementById('id_lon');
+
+            region.addEventListener('change', function () {
+                fetch(`/ajax/load-provinces/?region=${region.value}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        province.innerHTML = '<option value="">---------</option>';
+                        data.forEach(opt => province.innerHTML += `<option value="${opt.id}">${opt.denominazione_provincia}</option>`);
+                        municipality.innerHTML = '<option value="">---------</option>';
+                    });
+            });
+
+            province.addEventListener('change', function () {
+                const provinceId = this.value;
+                fetch(`/ajax/load-municipalities/?province=${provinceId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        municipality.innerHTML = '<option value="">---------</option>';
+                        data.forEach(item => {
+                            municipality.innerHTML += `<option value="${item.id}">${item.denominazione_comune}</option>`;
+                        });
+                    });
+            });
+
+            const mapModal = document.getElementById('drawMapModal');
+            let mapInitialized = false;
+
+            mapModal.addEventListener('shown.bs.modal', () => {
+                if (!mapInitialized) {
+                    const map = L.map('map').setView([43.7696, 11.2558], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap contributors'
+                    }).addTo(map);
+                    map.invalidateSize();
+
+                    const drawnItems = new L.FeatureGroup();
+                    map.addLayer(drawnItems);
+
+                    const drawControl = new L.Control.Draw({
+                        draw: {
+                            polygon: true,
+                            polyline: false,
+                            rectangle: true,
+                            circle: false,
+                            marker: false,
+                            circlemarker: false
+                        },
+                        edit: {featureGroup: drawnItems}
+                    });
+                    map.addControl(drawControl);
+
+                    map.on(L.Draw.Event.CREATED, function (e) {
+                        const layer = e.layer;
+                        drawnItems.clearLayers();
+                        drawnItems.addLayer(layer);
+
+                        const geojson = layer.toGeoJSON();
+                        const coordinates = geojson.geometry.coordinates[0];
+                        const tupleString = coordinates.map(coord => `(${coord[0].toFixed(6)},${coord[1].toFixed(6)})`).join(',');
+                        const formatted = `(${tupleString})`;
+
+                        const geometryInput = document.querySelector('[name="geometry"]');
+                        if (geometryInput) geometryInput.value = formatted;
+
+                        // Calcolo del centroide
+                        const lats = coordinates.map(c => c[1]);
+                        const lons = coordinates.map(c => c[0]);
+                        const centroidLat = lats.reduce((a, b) => a + b) / lats.length;
+                        const centroidLon = lons.reduce((a, b) => a + b) / lons.length;
+
+                        // Inserimento del centroide nei campi lat e lon
+                        if (latField && lonField) {
+                            latField.value = centroidLat.toFixed(6);
+                            lonField.value = centroidLon.toFixed(6);
+                        }
+                    });
+
+                    mapInitialized = true;
+                }
+            });
+
+            const shapefileInput = document.getElementById('shapefileInput');
+            const previewButton = document.getElementById('acceptShapefileArea');
+            const geometryField = document.getElementById('geometry');
+
+            let shpMap;
+
+            document.getElementById('uploadShapefileModal').addEventListener('shown.bs.modal', () => {
+                if (!shpMap) {
+                    shpMap = L.map('shapefileMap').setView([43.7696, 11.2558], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap'
+                    }).addTo(shpMap);
+                    shpMap.invalidateSize();
+                }
+            });
+
+            previewButton.addEventListener('click', () => {
+                const file = shapefileInput.files[0];
+                if (!file) return alert('Carica un file .zip');
+
+                const formData = new FormData();
+                formData.append('shapefile', file);
+
+                fetch('/api/preview-shapefile/', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.error) return alert(data.error);
+
+                        geometryField.value = data.geometry;
+
+                        const coords = data.geometry.match(/\((-?\d+\.\d+),(-?\d+\.\d+)\)/g)
+                            .map(c => c.replace(/[()]/g, '').split(',').map(Number));
+
+                        // Calcola il centroide
+                        const lats = coords.map(c => c[1]);
+                        const lons = coords.map(c => c[0]);
+                        const centroidLat = lats.reduce((a, b) => a + b) / lats.length;
+                        const centroidLon = lons.reduce((a, b) => a + b) / lons.length;
+
+                        // Inserisci le coordinate nel campo lat/lon
+                        latField.value = centroidLat.toFixed(6);
+                        lonField.value = centroidLon.toFixed(6);
+
+                        const polygon = L.polygon(coords.map(c => [c[1], c[0]])).addTo(shpMap);
+                        shpMap.fitBounds(polygon.getBounds());
+
+                        const modalEl = document.getElementById('uploadShapefileModal');
+                        const modal = new bootstrap.Modal(modalEl);
+                        modal.hide();
+                    })
+                    .catch(err => alert('Errore: ' + err));
+            });
+        });
+    </script>
+{% endblock %}

@@ -14,15 +14,17 @@ from django.views.generic import (
 )
 from .models import Research, Author, Typology, TypologyDetail, ResearchAuthor, Province, \
     Municipality, SiteResearch, Investigation, SiteBibliography, Sources, SiteSources, Image, \
-    Bibliography
+    Bibliography, SiteRelatedDocumentation, ArchEvBiblio, ArchEvSources, ArchEvRelatedDoc, ArchEvResearch, \
+    SiteInvestigation, SiteArchEvidence
 from django.urls import reverse_lazy, reverse
 from django.contrib.staticfiles.views import serve
 
-from .forms import ResearchForm, SiteForm, EvidenceForm, Site, ArchaeologicalEvidence
+from .forms import ResearchForm, SiteForm, ArchaeologicalEvidenceForm, Site, ArchaeologicalEvidence
+from django.forms import formset_factory
+from .forms import SiteForm
 
 
 def home(request):
-
     return render(request, 'frontend/home.html')
 
 
@@ -166,6 +168,20 @@ class ResearchDetailView(DetailView):
     model = Research
     template_name = 'frontend/research_detail.html'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        research = self.object
+
+        # Evidences linked directly to research (not linked to a site)
+        direct_evidences = ArchaeologicalEvidence.objects.filter(
+            archevresearch__id_research=research.id
+        ).exclude(
+            sitearchevidence__isnull=False
+        )
+
+        context['direct_evidences'] = direct_evidences
+        return context
+
 
 from .forms import ResearchForm  # assicurati che sia importato
 
@@ -189,7 +205,7 @@ class ResearchUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
 class ResearchDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Research
-    success_url = '/'
+    success_url = reverse_lazy('user-researches')
     template_name = 'frontend/research_confirm_delete.html'
 
     def test_func(self):
@@ -197,7 +213,6 @@ class ResearchDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         if self.request.user == research.submitted_by:
             return True
         return False
-
 
 
 def load_typologies(request):
@@ -246,6 +261,7 @@ def preview_shapefile(request):
 
 from .models import SiteToponymy, Interpretation
 
+
 def search_authors(request):
     query = request.GET.get('q', '')
     results = []
@@ -264,13 +280,20 @@ def search_authors(request):
         ]
     return JsonResponse(results, safe=False)
 
+
 class SiteCreateView(LoginRequiredMixin, CreateView):
     model = Site
     form_class = SiteForm
     template_name = 'frontend/site_form.html'
-    success_url = reverse_lazy('site_list')
+
+    def get_success_url(self):
+        research_id = self.request.GET.get('research_id')
+        if research_id:
+            return reverse('research-detail', args=[research_id])
+        return reverse('evidence_list')  # fallback if no research_id
 
     def form_valid(self, form):
+
         # Optional: build geometry from lat/lon
         lat = form.cleaned_data.get('lat')
         lon = form.cleaned_data.get('lon')
@@ -278,7 +301,7 @@ class SiteCreateView(LoginRequiredMixin, CreateView):
             form.instance.geometry = (float(lon), float(lat))
 
         response = super().form_valid(form)  # Save the Site instance
-        site = self.object  # Now it's guaranteed to be saved
+        site = self.object
 
         # Save SiteToponymy
         ancient_name = form.cleaned_data.get('ancient_place_name')
@@ -286,7 +309,7 @@ class SiteCreateView(LoginRequiredMixin, CreateView):
 
         if ancient_name or contemporary_name:
             SiteToponymy.objects.create(
-                id_site=site.id,
+                id_site=site,
                 ancient_place_name=ancient_name,
                 contemporary_place_name=contemporary_name
             )
@@ -323,11 +346,87 @@ class SiteCreateView(LoginRequiredMixin, CreateView):
         investigation_type = form.cleaned_data.get('investigation_type')
 
         if project_name and periodo and investigation_type:
-            Investigation.objects.create(
-                id_site=site.id,
+            investigation, created = Investigation.objects.update_or_create(
                 project_name=project_name,
-                period=periodo,
-                id_investigation_type=investigation_type
+                defaults={
+                    'period': periodo,
+                    'id_investigation_type': investigation_type
+                }
+            )
+            # Associate the investigation with the site
+            SiteInvestigation.objects.update_or_create(
+                id_site=site,
+                id_investigation=investigation
+            )
+
+        # Save site bibliography
+        title = form.cleaned_data.get('title')
+        author = form.cleaned_data.get('author')
+        year = form.cleaned_data.get('year')
+        doi = form.cleaned_data.get('doi')
+        tipo = form.cleaned_data.get('type')
+
+        if title or author or year or doi or type:
+            bibliography, created = Bibliography.objects.update_or_create(
+                title=title,
+                defaults={
+                    'author': author,
+                    'year': year,
+                    'doi': doi,
+                    'tipo': tipo
+                }
+            )
+            # Associate the bibliography with the site
+            SiteBibliography.objects.update_or_create(
+                id_site=site,
+                id_bibliography=bibliography
+            )
+
+        # Save site sources and relate to a site
+        name = form.cleaned_data.get('name')
+        id_chronology = form.cleaned_data.get('documentation_chronology')
+        id_source_type = form.cleaned_data.get('source_type')
+
+        if name or id_chronology or id_source_type:
+            source, created = Sources.objects.update_or_create(
+                name=name,
+                defaults={
+                    'id_chronology': id_chronology,
+                    'id_sources_typology': id_source_type
+                }
+            )
+            # Associate the source with the site
+            SiteSources.objects.update_or_create(
+                id_site=site,
+                id_sources=source
+            )
+
+        # Save site related documentation
+        name = form.cleaned_data.get('name')
+        author = form.cleaned_data.get('author')
+        year = form.cleaned_data.get('year')
+
+        if name or author or year:
+            SiteRelatedDocumentation.objects.update_or_create(
+                id_site=site,
+                defaults={
+                    'name': name,
+                    'author': author,
+                    'year': year
+                }
+            )
+
+        # Save site related images
+        image_type = form.cleaned_data.get('image_type')
+        image_scale = form.cleaned_data.get('image_scale')
+
+        if image_type or image_scale:
+            Image.objects.update_or_create(
+                id_site=site,
+                defaults={
+                    'id_image_type': image_type.id,
+                    'id_image_scale': image_scale.id
+                }
             )
 
         return response
@@ -367,7 +466,12 @@ class SiteUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Site
     form_class = SiteForm
     template_name = 'frontend/site_form.html'
-    success_url = reverse_lazy('site_list')
+
+    def get_success_url(self):
+        research_id = self.request.GET.get('research_id')
+        if research_id:
+            return reverse('research-detail', args=[research_id])
+        return reverse('evidence_list')  # fallback if no research_id
 
     def get_initial(self):
         initial = super().get_initial()
@@ -393,16 +497,53 @@ class SiteUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             pass
 
         # Investigation
-        try:
-            investigation = Investigation.objects.get(id_site=site.id)
+        site_investigation = SiteInvestigation.objects.filter(id_site=site.id).first()
+        if site_investigation and site_investigation.id_investigation:
+            investigation = site_investigation.id_investigation
             initial['project_name'] = investigation.project_name
             initial['periodo'] = investigation.period
             initial['investigation_type'] = investigation.id_investigation_type
-        except Investigation.DoesNotExist:
+
+        # SiteBibliography
+        try:
+            site_biblio = SiteBibliography.objects.select_related('id_bibliography').get(id_site=site.id)
+            biblio = site_biblio.id_bibliography  # Access the related Bibliography
+            initial['title'] = biblio.title
+            initial['author'] = biblio.author
+            initial['year'] = biblio.year
+            initial['doi'] = biblio.doi
+            initial['tipo'] = biblio.tipo
+        except SiteBibliography.DoesNotExist:
+            pass
+
+        # SiteSources
+        try:
+            site_sources = SiteSources.objects.select_related('id_sources').get(id_site=site.id)
+            source = site_sources.id_sources
+            initial['name'] = source.name
+            initial['documentation_chronology'] = source.id_chronology
+            initial['source_type'] = source.id_sources_typology
+        except SiteSources.DoesNotExist:
+            pass
+
+        # SiteRelatedDocumentation
+        try:
+            site_doc = SiteRelatedDocumentation.objects.get(id_site=site.id)
+            initial['name'] = site_doc.name
+            initial['author'] = site_doc.author
+            initial['year'] = site_doc.year
+        except SiteRelatedDocumentation.DoesNotExist:
+            pass
+
+        # Image
+        try:
+            image = Image.objects.get(id_site=site.id)
+            initial['image_type'] = image.id_image_type
+            initial['image_scale'] = image.id_image_scale
+        except Image.DoesNotExist:
             pass
 
         return initial
-
 
     def form_valid(self, form):
         lat = form.cleaned_data.get('lat')
@@ -413,14 +554,16 @@ class SiteUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         response = super().form_valid(form)
         site = self.object
 
+        # Update SiteToponymy
         SiteToponymy.objects.update_or_create(
-            id_site=site.id,
+            id_site=site,
             defaults={
                 'ancient_place_name': form.cleaned_data.get('ancient_place_name'),
                 'contemporary_place_name': form.cleaned_data.get('contemporary_place_name')
             }
         )
 
+        # Update Interpretation
         if form.cleaned_data.get('functional_class'):
             Interpretation.objects.update_or_create(
                 id_site=site,
@@ -432,72 +575,87 @@ class SiteUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
                     'chronology_certainty_level': form.cleaned_data.get('chronology_certainty_level') or 1
                 }
             )
+        # Update SiteResearch relationship
+        research_id = self.request.GET.get('research_id')
+        if research_id:
+            try:
+                research = Research.objects.get(pk=research_id)
+                SiteResearch.objects.update_or_create(
+                    id_site=site,
+                    id_research=research
+                )
+            except Research.DoesNotExist:
+                pass
 
-        # Save Investigation
+        # Update Investigation
         project_name = form.cleaned_data.get('project_name')
         periodo = form.cleaned_data.get('periodo')
         investigation_type = form.cleaned_data.get('investigation_type')
 
         if project_name and periodo and investigation_type:
-            Investigation.objects.update_or_create(
-                id_site=site.id,
+            investigation, created = Investigation.objects.update_or_create(
+                project_name = project_name,
                 defaults={
-                    'project_name': project_name,
                     'period': periodo,
                     'id_investigation_type': investigation_type
                 }
             )
+            # Associate the investigation with the site
+            SiteInvestigation.objects.update_or_create(
+                id_site=site,
+                id_investigation=investigation
+            )
 
-        # Save site bibliography
+        # Update site bibliography
         title = form.cleaned_data.get('title')
-        author= form.cleaned_data.get('author')
+        author = form.cleaned_data.get('author')
         year = form.cleaned_data.get('year')
         doi = form.cleaned_data.get('doi')
-        type = form.cleaned_data.get('type')
+        tipo = form.cleaned_data.get('tipo')
 
-        if title or author or year or doi or type:
-            bibliography, created=Bibliography.objects.update_or_create(
+        if title or author or year or doi or tipo:
+            bibliography, created = Bibliography.objects.update_or_create(
                 defaults={
                     'title': title,
                     'author': author,
                     'year': year,
                     'doi': doi,
-                    'type': type
+                    'tipo': tipo
                 }
             )
             # Associate the bibliography with the site
             SiteBibliography.objects.update_or_create(
                 id_site=site.id,
-                id_bibliography=bibliography.id
+                id_bibliography=bibliography
             )
 
-        # Save site sources and relate to a site
+        # Update site sources and relate to a site
         name = form.cleaned_data.get('name')
         id_chronology = form.cleaned_data.get('documentation_chronology')
         id_source_type = form.cleaned_data.get('source_type')
 
         if name or id_chronology or id_source_type:
-            source, created=Sources.objects.update_or_create(
+            source, created = Sources.objects.update_or_create(
                 name=name,
                 defaults={
-                    'id_chronology': id_chronology.id,
-                    'id_sources_typology': id_source_type.id
+                    'id_chronology': id_chronology,
+                    'id_sources_typology': id_source_type
                 }
             )
             # Associate the source with the site
             SiteSources.objects.update_or_create(
                 id_site=site.id,
-                id_sources=source.id
+                id_sources=source
             )
 
-        # Save site related documentation
+        # Update site related documentation
         name = form.cleaned_data.get('name')
         author = form.cleaned_data.get('author')
         year = form.cleaned_data.get('year')
 
         if name or author or year:
-            SiteBibliography.objects.update_or_create(
-                id_site=site.id,
+            SiteRelatedDocumentation.objects.update_or_create(
+                id_site=site,
                 defaults={
                     'name': name,
                     'author': author,
@@ -505,7 +663,7 @@ class SiteUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
                 }
             )
 
-        # Save site related images
+        # Update site related images
         image_type = form.cleaned_data.get('image_type')
         image_scale = form.cleaned_data.get('image_scale')
 
@@ -519,8 +677,6 @@ class SiteUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             )
 
         return response
-
-
 
     def test_func(self):
         return True
@@ -542,9 +698,263 @@ class SiteDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return reverse('site_list')  # fallback if no research is linked
 
 
-
-class EvidenceCreateView(LoginRequiredMixin, CreateView):
+class EvidenceCreateView(CreateView):
     model = ArchaeologicalEvidence
-    form_class = EvidenceForm
+    form_class = ArchaeologicalEvidenceForm
     template_name = 'frontend/evidence_form.html'
-    success_url = reverse_lazy('evidence_list')  # oppure ritorna alla ricerca
+
+    def get_success_url(self):
+        research_id = self.request.GET.get('research_id')
+        if research_id:
+            return reverse('research-detail', args=[research_id])
+        return reverse('evidence_list')  # fallback if no research_id
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        arch_ev = self.object
+
+        # Save relation with Research or Site
+        research_id = self.request.GET.get('research_id')
+        site_id = self.request.GET.get('site_id')
+
+        if research_id:
+            try:
+                research = Research.objects.get(pk=research_id)
+                ArchEvResearch.objects.update_or_create(
+                    id_archaeological_evidence=arch_ev,
+                    defaults={'id_research': research.id}
+                )
+            except Research.DoesNotExist:
+                pass
+
+        if site_id:
+            try:
+                site = Site.objects.get(pk=site_id)
+                SiteArchEvidence.objects.update_or_create(
+                    id_site=site,
+                    id_archaeological_evidence=arch_ev
+                )
+            except Site.DoesNotExist:
+                pass
+
+        # Save bibliography
+        title = form.cleaned_data.get('title')
+        author = form.cleaned_data.get('author')
+        year = form.cleaned_data.get('year')
+        doi = form.cleaned_data.get('doi')
+        tipo = form.cleaned_data.get('type')
+
+        if title or author or year or doi or tipo:
+            bibliography, _ = Bibliography.objects.update_or_create(
+                title=title,
+                defaults={
+                    'author': author,
+                    'year': year,
+                    'doi': doi,
+                    'tipo': tipo
+                }
+            )
+            ArchEvBiblio.objects.update_or_create(
+                id_archaeological_evidence=arch_ev,
+                defaults={'id_bibliography': bibliography}
+            )
+
+        # Save sources
+        source_name = form.cleaned_data.get('name')
+        id_chronology = form.cleaned_data.get('documentation_chronology')
+        id_source_type = form.cleaned_data.get('source_type')
+
+        if source_name or id_chronology or id_source_type:
+            source, _ = Sources.objects.update_or_create(
+                name=source_name,
+                defaults={
+                    'id_chronology': id_chronology,
+                    'id_sources_typology': id_source_type
+                }
+            )
+            ArchEvSources.objects.update_or_create(
+                id_archaeological_evidence=arch_ev,
+                defaults={'id_sources': source}
+            )
+
+        # Save related documentation
+        doc_name = form.cleaned_data.get('documentation_name')
+        doc_author = form.cleaned_data.get('documentation_author')
+        doc_year = form.cleaned_data.get('documentation_year')
+
+        if doc_name or doc_author or doc_year:
+            ArchEvRelatedDoc.objects.update_or_create(
+                id_archaeological_evidence=arch_ev,
+                defaults={
+                    'name': doc_name,
+                    'author': doc_author,
+                    'year': doc_year
+                }
+            )
+
+        # Save investigation
+        project_name = form.cleaned_data.get('project_name')
+        periodo = form.cleaned_data.get('periodo')
+        investigation_type = form.cleaned_data.get('investigation_type')
+
+        if project_name and periodo and investigation_type:
+            investigation, _ = Investigation.objects.update_or_create(
+                project_name=project_name,
+                defaults={
+                    'period': periodo,
+                    'id_investigation_type': investigation_type
+                }
+            )
+            arch_ev.id_investigation = investigation
+            arch_ev.save()
+
+        return response
+
+
+class EvidenceListView(LoginRequiredMixin, ListView):
+    model = ArchaeologicalEvidence
+    template_name = 'frontend/evidence_list.html'
+    context_object_name = 'evidences'
+
+    def get_queryset(self):
+        queryset = ArchaeologicalEvidence.objects.all()
+        research_id = self.request.GET.get('research_id')
+        if research_id:
+            queryset = queryset.filter(archaeologicalevidenceresearch__id_research=research_id)
+        return queryset
+
+class EvidenceDetailView(LoginRequiredMixin, DetailView):
+    model = ArchaeologicalEvidence
+    template_name = 'frontend/evidence_detail.html'
+    context_object_name = 'evidence'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        evidence = self.object
+        context['arch_ev_biblio'] = ArchEvBiblio.objects.filter(id_archaeological_evidence=evidence.id).first()
+        context['arch_ev_sources'] = ArchEvSources.objects.filter(id_archaeological_evidence=evidence.id).first()
+        context['arch_ev_related_doc'] = ArchEvRelatedDoc.objects.filter(id_archaeological_evidence=evidence.id).first()
+        return context
+
+class EvidenceUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = ArchaeologicalEvidence
+    form_class = ArchaeologicalEvidenceForm
+    template_name = 'frontend/evidence_form.html'
+
+    def get_success_url(self):
+        research_id = self.request.GET.get('research_id')
+        if research_id:
+            return reverse('research-detail', args=[research_id])
+        return reverse('evidence_list')  # fallback if no research_id
+
+    def get_initial(self):
+        initial = super().get_initial()
+        evidence = self.get_object()
+
+        # Investigation fields
+        if evidence.id_investigation:
+            initial['project_name'] = evidence.id_investigation.project_name
+            initial['periodo'] = evidence.id_investigation.period
+            initial['investigation_type'] = evidence.id_investigation.id_investigation_type
+
+        # Related bibliography
+        biblio = getattr(evidence.archevbiblio_set.first(), 'id_bibliography', None)
+        if biblio:
+            initial['title'] = biblio.title
+            initial['author'] = biblio.author
+            initial['year'] = biblio.year
+            initial['doi'] = biblio.doi
+            initial['type'] = biblio.tipo
+
+        # Sources
+        source = getattr(evidence.archevsources_set.first(), 'id_sources', None)
+        if source:
+            initial['name'] = source.name
+            initial['documentation_chronology'] = source.id_chronology
+            initial['source_type'] = source.id_sources_typology
+
+        # Related doc
+        related_doc = evidence.archevrelateddoc_set.first()
+        if related_doc:
+            initial['documentation_name'] = related_doc.name
+            initial['documentation_author'] = related_doc.author
+            initial['documentation_year'] = related_doc.year
+
+        return initial
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        arch_ev = self.object
+
+        # Save/update Investigation
+        project_name = form.cleaned_data.get('project_name')
+        periodo = form.cleaned_data.get('periodo')
+        investigation_type = form.cleaned_data.get('investigation_type')
+        if project_name and periodo and investigation_type:
+            investigation, _ = Investigation.objects.update_or_create(
+                project_name=project_name,
+                defaults={
+                    'period': periodo,
+                    'id_investigation_type': investigation_type
+                }
+            )
+            arch_ev.id_investigation = investigation
+            arch_ev.save()
+
+        # Save/update Bibliography
+        title = form.cleaned_data.get('title')
+        author = form.cleaned_data.get('author')
+        year = form.cleaned_data.get('year')
+        doi = form.cleaned_data.get('doi')
+        tipo = form.cleaned_data.get('type')
+        if title or author or year or doi or tipo:
+            bibliography, _ = Bibliography.objects.update_or_create(
+                title=title,
+                defaults={'author': author, 'year': year, 'doi': doi, 'tipo': tipo}
+            )
+            ArchEvBiblio.objects.update_or_create(
+                id_archaeological_evidence=arch_ev,
+                defaults={'id_bibliography': bibliography}
+            )
+
+        # Save/update Source
+        source_name = form.cleaned_data.get('name')
+        id_chronology = form.cleaned_data.get('documentation_chronology')
+        id_source_type = form.cleaned_data.get('source_type')
+        if source_name or id_chronology or id_source_type:
+            source, _ = Sources.objects.update_or_create(
+                name=source_name,
+                defaults={'id_chronology': id_chronology, 'id_sources_typology': id_source_type}
+            )
+            ArchEvSources.objects.update_or_create(
+                id_archaeological_evidence=arch_ev,
+                defaults={'id_sources': source}
+            )
+
+        # Save/update related doc
+        doc_name = form.cleaned_data.get('documentation_name')
+        doc_author = form.cleaned_data.get('documentation_author')
+        doc_year = form.cleaned_data.get('documentation_year')
+        if doc_name or doc_author or doc_year:
+            ArchEvRelatedDoc.objects.update_or_create(
+                id_archaeological_evidence=arch_ev,
+                defaults={
+                    'name': doc_name,
+                    'author': doc_author,
+                    'year': doc_year
+                }
+            )
+
+        return response
+
+    def test_func(self):
+        return self.request.user.is_authenticated
+
+class EvidenceDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = ArchaeologicalEvidence
+    template_name = 'frontend/evidence_confirm_delete.html'
+    success_url = reverse_lazy('research-detail')
+
+    def test_func(self):
+        return self.request.user.is_authenticated
+

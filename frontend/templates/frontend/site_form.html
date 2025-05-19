@@ -32,16 +32,19 @@
                     <div class="row">
                         <div class="col-md-4">
                             {{ form.site_name|as_crispy_field }}
+                            {{ form.id_country|as_crispy_field }}
                             {{ form.id_region|as_crispy_field }}
                             {{ form.id_province|as_crispy_field }}
                             {{ form.id_municipality|as_crispy_field }}
                         </div>
                         <div class="col-md-4">
+                            <h6><b>Altri toponimi</b></h6>
                             {{ form.ancient_place_name|as_crispy_field }}
                             {{ form.contemporary_place_name|as_crispy_field }}
                         </div>
                         <div class="col-md-4">
                             {{ form.description|as_crispy_field }}
+                            <h6><b>Coordinate</b></h6>
                             {{ form.lat|as_crispy_field }}
                             {{ form.lon|as_crispy_field }}
                             {{ form.elevation|as_crispy_field }}
@@ -89,39 +92,46 @@
 
                 <div class="tab-pane fade" id="research" role="tabpanel">
                     <div class="row mb-3">
-                        <div class="col-md-4">{{ form.id_first_discovery_method|as_crispy_field }}</div>
-                        <div class="col-md-4">{{ form.investigation_type|as_crispy_field }}</div>
-                        <div class="col-md-4">{{ form.project_name|as_crispy_field }}</div>
-                    </div>
-                    <div class="row">
-                        <div class="col-12">
-                            <h6>Periodo</h6>
+                        <div class="col-md-4">
+                            {{ form.id_first_discovery_method|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.project_name|as_crispy_field }}
+                            {{ form.investigation_type|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
                             {{ form.periodo|as_crispy_field }}
                         </div>
+
                     </div>
+
                 </div>
 
                 <div class="tab-pane fade" id="documentation" role="tabpanel">
                     <div class="row">
                         <div class="col-md-4">
+                            <h5>Bibliografia</h5>
                             {{ form.title|as_crispy_field }}
                             {{ form.author|as_crispy_field }}
                             {{ form.year|as_crispy_field }}
                             {{ form.doi|as_crispy_field }}
-                            {{ form.types|as_crispy_field }}
+                            {{ form.tipo|as_crispy_field }}
                         </div>
                         <div class="col-md-4">
+                            <h5>Fonti</h5>
                             {{ form.name|as_crispy_field }}
                             {{ form.documentation_chronology|as_crispy_field }}
                             {{ form.source_type|as_crispy_field }}
                         </div>
                         <div class="col-md-4">
+                            <h5>Altra documentazione relativa al sito</h5>
                             {{ form.documentation_name|as_crispy_field }}
                             {{ form.documentation_author|as_crispy_field }}
                             {{ form.documentation_year|as_crispy_field }}
                         </div>
                     </div>
                     <div class="row">
+                        <h5>Immagini</h5>
                         {{ form.image_type|as_crispy_field }}
                         {{ form.image_scale|as_crispy_field }}
                     </div>
@@ -147,6 +157,7 @@
                         <i class="fas fa-save"></i> Salva
                     </button>
                 </div>
+            </div>
         </form>
     </div>
 

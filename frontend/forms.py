@@ -1,6 +1,6 @@
 from django import forms
 from .models import Research, Site, ArchaeologicalEvidence, FunctionalClass, Typology, TypologyDetail, Chronology, \
-    InvestigationType, SourcesType, ImageType, ImageScale
+    InvestigationType, SourcesType, ImageType, ImageScale, SiteToponymy
 from django.contrib.gis.geos import Point
 
 class ResearchForm(forms.ModelForm):
@@ -102,7 +102,7 @@ class SiteForm(forms.ModelForm):
         required=False,
         label="DOI")
 
-    types = forms.CharField(
+    tipo = forms.CharField(
         max_length=255,
         required=False,
         label="Tipo")
@@ -147,11 +147,6 @@ class SiteForm(forms.ModelForm):
         required=False,
         label="Scala"
     )
-
-
-
-
-
 
     class Meta:
         model = Site
@@ -212,6 +207,10 @@ class SiteForm(forms.ModelForm):
         for field in self.fields:
             self.fields[field].widget.attrs.update({'class': 'form-control'})
 
+        # Set default country to Italy (id 113)
+        if not self.initial.get('id_country') and not self.data.get('id_country'):
+            self.fields['id_country'].initial = 113
+
         # Dynamic Typology options depending on Functional Class selected
         if 'functional_class' in self.data:
             try:
@@ -228,7 +227,154 @@ class SiteForm(forms.ModelForm):
             except (ValueError, TypeError):
                 self.fields['typology_detail'].queryset = Typology.objects.none()
 
-class EvidenceForm(forms.ModelForm):
+
+class ArchaeologicalEvidenceForm(forms.ModelForm):
+    project_name = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Nome del progetto")
+
+    investigation_type = forms.ModelChoiceField(
+        queryset=InvestigationType.objects.all(),
+        required=False,
+        label="Tipo di indagine")
+
+    periodo = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Periodo")
+
+    title = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Titolo")
+
+    author = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Autore")
+
+    year = forms.IntegerField(
+        required=False,
+        label="Anno")
+
+    doi = forms.CharField(
+        max_length=255,
+        required=False,
+        label="DOI")
+
+    tipo = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Tipo")
+
+    name = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Name")
+
+    documentation_chronology = forms.ModelChoiceField(
+        queryset=Chronology.objects.all(),
+        required=False,
+        label="Cronologia")
+
+    source_type = forms.ModelChoiceField(
+        queryset=SourcesType.objects.all(),
+        required=False,
+        label="Tipologia di fonte")
+
+    documentation_name = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Nome")
+
+    documentation_author = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Autore")
+
+    documentation_year = forms.IntegerField(
+        required=False,
+        label="Anno")
+
+    image_type = forms.ModelChoiceField(
+        queryset=ImageType.objects.all(),
+        required=False,
+        label="Tipologia"
+    )
+
+    image_scale = forms.ModelChoiceField(
+        queryset=ImageScale.objects.all(),
+        required=False,
+        label="Scala"
+    )
+
     class Meta:
         model = ArchaeologicalEvidence
-        fields = '__all__'
+        fields = [
+            'id_archaeological_evidence_typology',
+            'description',
+            'id_country',
+            'id_region',
+            'id_province',
+            'id_municipality',
+            'id_physiography',
+            'id_positioning_mode',
+            'id_positional_accuracy',
+            'id_base_map',
+            'id_first_discovery_method',
+            'id_investigation',
+            'elevation',
+            'additional_topography',
+            'locality_name',
+            'lat',
+            'lon',
+            'geometry',
+            'chronology_certainty_level',
+            'id_chronology',
+            'notes'
+        ]
+
+        labels = {
+            'id_archaeological_evidence_typology': 'Typology',
+            'description': 'Description',
+            'id_country': 'Country',
+            'id_region': 'Region',
+            'id_province': 'Province',
+            'id_municipality': 'Municipality',
+            'id_physiography': 'Physiography',
+            'id_positioning_mode': 'Positioning Mode',
+            'id_positional_accuracy': 'Positional Accuracy',
+            'id_base_map': 'Base Map',
+            'id_first_discovery_method': 'Discovery Method',
+            'id_investigation': 'Investigation',
+            'elevation': 'Elevation (m)',
+            'additional_topography': 'Additional Topography Notes',
+            'locality_name': 'Locality Name',
+            'lat': 'Latitude',
+            'lon': 'Longitude',
+            'geometry': 'Geometry',
+            'chronology_certainty_level': 'Chronology Certainty Level',
+            'id_chronology': 'Chronology',
+            'notes': 'Note'
+        }
+
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'additional_topography': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'geometry': forms.TextInput(attrs={
+                'id': 'geometry',
+                'readonly': 'readonly',
+                'rows': 4,
+                'class': 'form-control'
+            }),
+            'lat': forms.NumberInput(attrs={'step': 'any', 'class': 'form-control'}),
+            'lon': forms.NumberInput(attrs={'step': 'any', 'class': 'form-control'}),
+            'elevation': forms.NumberInput(attrs={'step': 'any', 'class': 'form-control'}),
+        }
+
+        def clean_geometry(self):
+            geometry = self.cleaned_data.get('geometry')
+            if geometry and not geometry.startswith('(('):
+                raise forms.ValidationError("Il campo geometria deve essere nel formato ((x,y),(x,y),...)")
+            return geometry
