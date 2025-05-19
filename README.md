@@ -14,7 +14,7 @@ SHAReLAND is a Django-based web platform designed for the collection, documentat
 
   * Descriptive, spatial, and contextual data
   * Linked to both research and sites
-* Interactive 2D and 3D map visualization (Leaflet / Cesium)
+* Interactive 2D map visualization (Leaflet)
 * Import of shapefiles and direct drawing of geometries on map
 * AJAX-based dynamic form inputs for region/province/municipality
 * Multilingual interface (Italian/English)
@@ -44,7 +44,7 @@ SHAReLAND is a Django-based web platform designed for the collection, documentat
 1. **Clone the repo**:
 
    ```bash
-   git clone https://github.com/your-org/shareland.git
+   git clone https://github.com/ergin84/ShareLand.git
    cd shareland
    ```
 
