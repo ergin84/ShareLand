@@ -96,4 +96,4 @@ This project is released under the MIT License.
 
 ## Contact
 
-For more information, contact the development team at: [info@yourdomain.org](mailto:ergin.mehmti@logos-ri.eu)
+For more information, contact the development team at: [ergin.mehmeti@logos-ri.eu](mailto:ergin.mehmti@logos-ri.eu)
