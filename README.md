@@ -1,16 +1,16 @@
 # SHAReLAND Project
 
-SHAReLAND is a Django-based web platform designed for the collection, documentation, and visualization of archaeological data. It supports the collaborative management of research projects, archaeological sites, and evidences, offering a structured and multilingual interface for scientific data entry and spatial referencing.
-
 <div align="center">
-  <img src="../shreland_homepage.png" alt="SHAReLAND Homepage Screenshot" width="600"/>
-  <br/>
-  <b>Figure 2: SHAReLAND Homepage</b>
-  <br/><br/>
-  <img src="../shareland_catalog.png" alt="SHAReLAND Catalog Screenshot" width="600"/>
+  <img src="shareland_catalog.png" alt="SHAReLAND Catalog Screenshot" width="600"/>
   <br/>
   <b>Figure 1: SHAReLAND Catalog View</b>
+  <br/><br/>
+  <img src="shreland_homepage.png" alt="SHAReLAND Homepage Screenshot" width="600"/>
+  <br/>
+  <b>Figure 2: SHAReLAND Homepage</b>
 </div>
+
+SHAReLAND is a Django-based web platform designed for the collection, documentation, and visualization of archaeological data. It supports the collaborative management of research projects, archaeological sites, and evidences, offering a structured and multilingual interface for scientific data entry and spatial referencing.
 
 ## Features
 
