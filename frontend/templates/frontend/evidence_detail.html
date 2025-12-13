@@ -1,28 +1,214 @@
 {% extends "frontend/base.html" %}
+{% load static %}
+
 {% block content %}
-    <div class="container mt-4">
-        <div class="card shadow-lg">
-            <div class="card-body">
-                <h2 class="card-title">Evidenza #{{ object.id }}</h2>
+<link rel="stylesheet" href="{% static 'frontend/public_research.css' %}">
 
-                {% if object.description %}
-                    <p><strong>Descrizione:</strong> {{ object.description }}</p>
+<style>
+  .detail-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid #e0e0e0; padding-bottom: 0; }
+  .detail-tab { flex: 1; min-width: 100px; padding: 0.75rem; background: #f8f9fa; border: none; border-radius: 8px 8px 0 0; cursor: pointer; transition: all 0.3s; font-weight: 500; color: #6c757d; font-size: 0.9rem; }
+  .detail-tab:hover { background: #e9ecef; }
+  .detail-tab.active { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(44, 62, 80, 0.3); }
+  .tab-content { display: none; animation: fadeIn 0.3s; }
+  .tab-content.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+
+<div class="container mt-4 mb-4">
+    <div class="research-card mb-4">
+        <div class="research-card-header d-flex justify-content-between align-items-start flex-wrap">
+            <div>
+                <h2 class="mb-1"><i class="fas fa-archway"></i>
+                    {% if evidence.evidence_name %}{{ evidence.evidence_name }}{% else %}Evidence #{{ evidence.id }}{% endif %}
+                </h2>
+                {% if evidence.id_archaeological_evidence_typology %}
+                    <span class="badge-modern">{{ evidence.id_archaeological_evidence_typology }}</span>
                 {% endif %}
+            </div>
+            {% if user.is_authenticated %}
+                <div class="btn-group">
+                    <a href="{% url 'evidence_update' evidence.id %}" class="btn btn-warning-modern btn-modern btn-sm"><i class="fas fa-edit"></i> Edit</a>
+                    <a href="{% url 'evidence_delete' evidence.id %}" class="btn btn-danger-modern btn-modern btn-sm"><i class="fas fa-trash"></i> Delete</a>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Tabs Navigation -->
+        <div class="detail-tabs">
+            <button class="detail-tab active" onclick="showTab(event, 'general')"><i class="fas fa-info-circle"></i> General</button>
+            <button class="detail-tab" onclick="showTab(event, 'desc')"><i class="fas fa-align-left"></i> Description</button>
+            <button class="detail-tab" onclick="showTab(event, 'pos')"><i class="fas fa-map-pin"></i> Positioning</button>
+            <button class="detail-tab" onclick="showTab(event, 'landscape')"><i class="fas fa-mountain"></i> Landscape</button>
+            <button class="detail-tab" onclick="showTab(event, 'research')"><i class="fas fa-flask"></i> Research</button>
+            <button class="detail-tab" onclick="showTab(event, 'docs')"><i class="fas fa-file-alt"></i> Documentation</button>
+            <button class="detail-tab" onclick="showTab(event, 'notes')"><i class="fas fa-sticky-note"></i> Notes</button>
+        </div>
 
-                <p><strong>Tipologia:</strong> {{ object.id_archaeological_evidence_typology }}</p>
-                <p><strong>Quota:</strong> {{ object.elevation }} m</p>
-                <p><strong>Coordinate:</strong> Lat {{ object.lat }} | Lon {{ object.lon }}</p>
-                <p><strong>Regione:</strong> {{ object.id_region }}</p>
-                <p><strong>Provincia:</strong> {{ object.id_province }}</p>
-                <p><strong>Comune:</strong> {{ object.id_municipality }}</p>
-                <p><strong>Località:</strong> {{ object.locality_name }}</p>
-
-                <hr>
-                <div class="d-flex justify-content-end">
-                    <a href="{% url 'evidence_update' object.id %}" class="btn btn-outline-primary me-2">Modifica</a>
-                    <a href="{% url 'evidence_delete' object.id %}" class="btn btn-outline-danger">Elimina</a>
+        <div class="research-card-body">
+            
+            <!-- General Tab -->
+            <div id="general" class="tab-content active">
+                <div class="detail-row">
+                    {% if evidence.id_country %}<div class="detail-item"><strong><i class="fas fa-flag"></i> Country</strong> {{ evidence.id_country }}</div>{% endif %}
+                    {% if evidence.id_region %}<div class="detail-item"><strong><i class="fas fa-map"></i> Region</strong> {{ evidence.id_region }}</div>{% endif %}
+                    {% if evidence.id_province %}<div class="detail-item"><strong><i class="fas fa-map-marked-alt"></i> Province</strong> {{ evidence.id_province }}</div>{% endif %}
+                    {% if evidence.id_municipality %}<div class="detail-item"><strong><i class="fas fa-city"></i> Municipality</strong> {{ evidence.id_municipality }}</div>{% endif %}
                 </div>
             </div>
+
+            <!-- Description Tab -->
+            <div id="desc" class="tab-content">
+                {% if evidence.description %}
+                    <p><strong>Description:</strong> {{ evidence.description }}</p>
+                {% else %}
+                    <p class="text-muted">No description recorded.</p>
+                {% endif %}
+            </div>
+
+            <!-- Positioning Tab -->
+            <div id="pos" class="tab-content">
+                <div class="detail-row">
+                    {% if evidence.lat and evidence.lon %}<div class="detail-item"><strong><i class="fas fa-globe"></i> Coordinates</strong> {{ evidence.lat }}, {{ evidence.lon }}</div>{% endif %}
+                    {% if evidence.elevation %}<div class="detail-item"><strong><i class="fas fa-mountain"></i> Elevation</strong> {{ evidence.elevation }} m</div>{% endif %}
+                    {% if evidence.id_positioning_mode %}<div class="detail-item"><strong><i class="fas fa-crosshairs"></i> Positioning Mode</strong> {{ evidence.id_positioning_mode }}</div>{% endif %}
+                    {% if evidence.id_positional_accuracy %}<div class="detail-item"><strong><i class="fas fa-bullseye"></i> Accuracy</strong> {{ evidence.id_positional_accuracy }}</div>{% endif %}
+                </div>
+            </div>
+
+            <!-- Landscape Tab -->
+            <div id="landscape" class="tab-content">
+                <div class="detail-row">
+                    {% if evidence.id_physiography %}<div class="detail-item"><strong><i class="fas fa-water"></i> Physiography</strong> {{ evidence.id_physiography }}</div>{% endif %}
+                    {% if evidence.id_first_discovery_method %}<div class="detail-item"><strong><i class="fas fa-compass"></i> Discovery Method</strong> {{ evidence.id_first_discovery_method }}</div>{% endif %}
+                    {% if evidence.id_chronology %}<div class="detail-item"><strong><i class="fas fa-clock"></i> Chronology</strong> {{ evidence.id_chronology }}</div>{% endif %}
+                </div>
+            </div>
+
+            <!-- Research Tab -->
+            <div id="research" class="tab-content">
+                <div class="row">
+                    {% if sites %}
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-landmark"></i> Sites</h6>
+                            <ul class="list-group list-group-sm">
+                                {% for site in sites %}
+                                    <li class="list-group-item">
+                                        <a href="{% url 'site_detail' site.id %}" class="text-decoration-none">{{ site.site_name|default:"Site #"|add:site.id }}</a>
+                                        {% if site.description %}<div class="text-muted small">{{ site.description|truncatewords:12 }}</div>{% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    {% if researches %}
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-book"></i> Researches</h6>
+                            <ul class="list-group list-group-sm">
+                                {% for research in researches %}
+                                    <li class="list-group-item"><a class="text-decoration-none" href="{% url 'public-research-detail' research.id %}">{{ research.title|default:"Research #"|add:research.id }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Documentation Tab -->
+            <div id="docs" class="tab-content">
+                <div class="row">
+                    {% if arch_ev_bibliographies %}
+                        <div class="col-md-4 mb-3">
+                            <h6><i class="fas fa-book"></i> Bibliographies ({{ arch_ev_bibliographies|length }})</h6>
+                            <ul class="list-group list-group-sm">
+                                {% for biblio in arch_ev_bibliographies %}
+                                    <li class="list-group-item">
+                                        <p class="mb-1"><strong>{{ biblio.title|default:"—" }}</strong></p>
+                                        {% if biblio.author or biblio.year %}<div class="text-muted small">{{ biblio.author }}{% if biblio.year %} ({{ biblio.year }}){% endif %}</div>{% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    {% if arch_ev_sources_list %}
+                        <div class="col-md-4 mb-3">
+                            <h6><i class="fas fa-file-alt"></i> Sources ({{ arch_ev_sources_list|length }})</h6>
+                            <ul class="list-group list-group-sm">
+                                {% for source in arch_ev_sources_list %}
+                                    <li class="list-group-item">
+                                        <p class="mb-1"><strong>{{ source.name|default:"—" }}</strong></p>
+                                        {% if source.id_chronology %}<div class="text-muted small">{{ source.id_chronology }}</div>{% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    {% if arch_ev_related_docs %}
+                        <div class="col-md-4 mb-3">
+                            <h6><i class="fas fa-paperclip"></i> Related Docs ({{ arch_ev_related_docs|length }})</h6>
+                            <ul class="list-group list-group-sm">
+                                {% for doc in arch_ev_related_docs %}
+                                    <li class="list-group-item">
+                                        <p class="mb-1"><strong>{{ doc.name|default:"—" }}</strong></p>
+                                        {% if doc.author or doc.year %}<div class="text-muted small">{{ doc.author }}{% if doc.year %} ({{ doc.year }}){% endif %}</div>{% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Images Section -->
+                {% if evidence_images %}
+                    <hr>
+                    <h6><i class="fas fa-image"></i> Images ({{ evidence_images|length }})</h6>
+                    <div class="row">
+                        {% for image in evidence_images %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card" style="height: 100%;">
+                                    {% if image.source_url %}
+                                        <img src="{{ image.source_url }}" alt="{{ image.desc_image|default:'Image' }}" class="card-img-top" style="height: 200px; object-fit: cover;">
+                                    {% else %}
+                                        <div class="card-img-top" style="height: 200px; background: #f0f0f0; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-image" style="font-size: 2rem; color: #ccc;"></i>
+                                        </div>
+                                    {% endif %}
+                                    <div class="card-body">
+                                        <h6 class="card-title">{{ image.desc_image|default:"Image #"|add:image.id }}</h6>
+                                        {% if image.id_image_type %}<span class="badge bg-info">{{ image.id_image_type }}</span>{% endif %}
+                                        {% if image.id_image_scale %}<span class="badge bg-secondary">{{ image.id_image_scale }}</span>{% endif %}
+                                        {% if image.author %}<div class="text-muted small">{{ image.author }}</div>{% endif %}
+                                        {% if image.source_url %}<a href="{{ image.source_url }}" class="btn btn-sm btn-outline-primary mt-2" target="_blank" rel="noopener">View</a>{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Notes Tab -->
+            <div id="notes" class="tab-content">
+                {% if evidence.notes %}
+                    <p><i class="fas fa-sticky-note"></i> {{ evidence.notes }}</p>
+                {% else %}
+                    <p class="text-muted">No notes recorded.</p>
+                {% endif %}
+            </div>
+
         </div>
     </div>
+</div>
+
+<script>
+function showTab(evt, tabName) {
+  const tabContents = document.querySelectorAll('.tab-content');
+  tabContents.forEach(tc => tc.classList.remove('active'));
+  
+  const tabButtons = document.querySelectorAll('.detail-tab');
+  tabButtons.forEach(tb => tb.classList.remove('active'));
+  
+  document.getElementById(tabName).classList.add('active');
+  evt.currentTarget.classList.add('active');
+}
+</script>
 {% endblock %}

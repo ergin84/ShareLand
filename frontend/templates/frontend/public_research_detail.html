@@ -1,0 +1,445 @@
+{% extends "frontend/base.html" %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'frontend/public_research.css' %}">
+
+<div class="container mt-4">
+    <div class="public-research-container">
+        <!-- Research Header -->
+        <div class="research-card mb-4">
+            <div class="research-card-header">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <h2 class="mb-0">
+                        <i class="fas fa-book-open"></i> {{ research.title|default:"Untitled Research" }}
+                    </h2>
+                    {% if user.is_authenticated %}
+                        {% if user.is_staff or user == research.submitted_by %}
+                            <div class="mt-2 mt-md-0">
+                                <a href="{% url 'research-update' research.pk %}" class="btn btn-warning-modern btn-modern btn-sm">
+                                    <i class="fas fa-edit"></i> Update
+                                </a>
+                                <a href="{% url 'research-delete' research.pk %}" class="btn btn-danger-modern btn-modern btn-sm">
+                                    <i class="fas fa-trash"></i> Delete
+                                </a>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="research-card-body">
+                <div class="detail-row">
+                    <div class="detail-item">
+                        <strong><i class="fas fa-calendar-alt"></i> Year</strong>
+                        {{ research.year|default:"N/A" }}
+                    </div>
+                    {% if research.type %}
+                        <div class="detail-item">
+                            <strong><i class="fas fa-tag"></i> Type</strong>
+                            <span class="badge-modern">{{ research.type }}</span>
+                        </div>
+                    {% endif %}
+                    {% if research.submitted_by %}
+                        <div class="detail-item">
+                            <strong><i class="fas fa-user"></i> Submitted by</strong>
+                            {{ research.submitted_by.profile.get_display_name }}
+                        </div>
+                    {% endif %}
+                    {% if research.keywords %}
+                        <div class="detail-item" style="flex: 1 1 100%;">
+                            <strong><i class="fas fa-tags"></i> Keywords</strong>
+                            {{ research.keywords }}
+                        </div>
+                    {% endif %}
+                </div>
+            
+                <!-- Abstract and Map Section -->
+                {% if research.abstract or map_html %}
+                    <div class="row mt-4">
+                        {% if research.abstract %}
+                            <div class="{% if map_html %}col-md-6{% else %}col-12{% endif %} mb-3">
+                                <div class="abstract-section">
+                                    <h5 class="mb-3"><i class="fas fa-file-alt"></i> Abstract</h5>
+                                    <p class="text-justify mb-0">{{ research.abstract }}</p>
+                                </div>
+                            </div>
+                        {% endif %}
+                        
+                        {% if map_html %}
+                            <div class="{% if research.abstract %}col-md-6{% else %}col-12{% endif %} mb-3">
+                                <h5 class="mb-3"><i class="fas fa-map-marked-alt"></i> Research Area Map</h5>
+                                <div class="map-container" style="width: 100%; height: {% if research.abstract %}400px{% else %}500px{% endif %};">
+                                    {{ map_html|safe }}
+                                </div>
+                            </div>
+                        {% elif research.geometry %}
+                            <div class="{% if research.abstract %}col-md-6{% else %}col-12{% endif %} mb-3">
+                                <h5 class="mb-3"><i class="fas fa-map"></i> Geometry</h5>
+                                <p><small class="text-muted">{{ research.geometry|truncatewords:20 }}</small></p>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                
+                {% if authors %}
+                    <div class="mt-4">
+                        <h5 class="mb-3"><i class="fas fa-users"></i> Authors</h5>
+                        <ul class="authors-list">
+                            {% for author in authors %}
+                                <li>
+                                    <i class="fas fa-user-circle"></i>
+                                    <strong>{{ author.name }} {{ author.surname }}</strong>
+                                    {% if author.affiliation %} - <em>{{ author.affiliation }}</em>{% endif %}
+                                    {% if author.contact_email %} <small class="text-muted">({{ author.contact_email }})</small>{% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+        </div>
+    </div>
+
+        <!-- Sites Section -->
+        {% if sites_with_details %}
+            <div class="research-card mb-4">
+                <div class="section-header">
+                    <i class="fas fa-map-marker-alt"></i>
+                    Related Sites <span class="badge badge-light ml-2">{{ sites_with_details|length }}</span>
+                </div>
+                <div class="research-card-body">
+                    {% for site_data in sites_with_details %}
+                        <div class="site-card">
+                            <div class="site-card-header">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                    <h4 class="mb-0">
+                                        <i class="fas fa-landmark"></i> {{ site_data.site.site_name }}
+                                    </h4>
+                                    {% if user.is_authenticated %}
+                                        {% if user.is_staff or user == research_owner %}
+                                            <div class="mt-2 mt-md-0">
+                                                <a href="{% url 'site_update' site_data.site.pk %}" class="btn btn-warning-modern btn-modern btn-sm">
+                                                    <i class="fas fa-edit"></i> Update
+                                                </a>
+                                                <a href="{% url 'site_delete' site_data.site.pk %}" class="btn btn-danger-modern btn-modern btn-sm">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="site-card-body">
+                                <div class="detail-row">
+                                    {% if site_data.site.locality_name %}
+                                        <div class="detail-item">
+                                            <strong><i class="fas fa-map-pin"></i> Locality</strong>
+                                            {{ site_data.site.locality_name }}
+                                        </div>
+                                    {% endif %}
+                                    {% if site_data.site.lat and site_data.site.lon %}
+                                        <div class="detail-item">
+                                            <strong><i class="fas fa-globe"></i> Coordinates</strong>
+                                            {{ site_data.site.lat }}, {{ site_data.site.lon }}
+                                        </div>
+                                    {% endif %}
+                                    {% if site_data.site.elevation %}
+                                        <div class="detail-item">
+                                            <strong><i class="fas fa-mountain"></i> Elevation</strong>
+                                            {{ site_data.site.elevation }} m
+                                        </div>
+                                    {% endif %}
+                                    {% if site_data.site.id_country %}
+                                        <div class="detail-item">
+                                            <strong><i class="fas fa-flag"></i> Country</strong>
+                                            {{ site_data.site.id_country }}
+                                        </div>
+                                    {% endif %}
+                                    {% if site_data.site.id_region %}
+                                        <div class="detail-item">
+                                            <strong><i class="fas fa-map"></i> Region</strong>
+                                            {{ site_data.site.id_region }}
+                                        </div>
+                                    {% endif %}
+                                    {% if site_data.site.id_province %}
+                                        <div class="detail-item">
+                                            <strong><i class="fas fa-map-marked-alt"></i> Province</strong>
+                                            {{ site_data.site.id_province }}
+                                        </div>
+                                    {% endif %}
+                                    {% if site_data.site.id_municipality %}
+                                        <div class="detail-item">
+                                            <strong><i class="fas fa-city"></i> Municipality</strong>
+                                            {{ site_data.site.id_municipality }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if site_data.site.description or site_data.site.notes or site_data.toponymy %}
+                                    <div class="detail-row mt-3">
+                                        {% if site_data.site.description %}
+                                            <div class="detail-item" style="flex: 1 1 100%;">
+                                                <strong><i class="fas fa-align-left"></i> Description</strong>
+                                                {{ site_data.site.description }}
+                                            </div>
+                                        {% endif %}
+                                        {% if site_data.site.notes %}
+                                            <div class="detail-item" style="flex: 1 1 100%;">
+                                                <strong><i class="fas fa-sticky-note"></i> Notes</strong>
+                                                {{ site_data.site.notes }}
+                                            </div>
+                                        {% endif %}
+                                        {% if site_data.toponymy %}
+                                            <div class="detail-item">
+                                                <strong><i class="fas fa-history"></i> Ancient Place Name</strong>
+                                                {{ site_data.toponymy.ancient_place_name|default:"N/A" }}
+                                            </div>
+                                            <div class="detail-item">
+                                                <strong><i class="fas fa-clock"></i> Contemporary Place Name</strong>
+                                                {{ site_data.toponymy.contemporary_place_name|default:"N/A" }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+
+                            <!-- Interpretation -->
+                            {% if site_data.interpretation %}
+                                <hr>
+                                <h5>Interpretation</h5>
+                                <div class="row">
+                                    {% if site_data.interpretation.id_functional_class %}
+                                        <div class="col-md-3"><strong>Functional Class:</strong> {{ site_data.interpretation.id_functional_class }}</div>
+                                    {% endif %}
+                                    {% if site_data.interpretation.id_typology %}
+                                        <div class="col-md-3"><strong>Typology:</strong> {{ site_data.interpretation.id_typology }}</div>
+                                    {% endif %}
+                                    {% if site_data.interpretation.id_typology_detail %}
+                                        <div class="col-md-3"><strong>Typology Detail:</strong> {{ site_data.interpretation.id_typology_detail }}</div>
+                                    {% endif %}
+                                    {% if site_data.interpretation.id_chronology %}
+                                        <div class="col-md-3"><strong>Chronology:</strong> {{ site_data.interpretation.id_chronology }}</div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+
+                            <!-- Investigation -->
+                            {% if site_data.investigation and site_data.investigation.id_investigation %}
+                                <hr>
+                                <h5>Investigation</h5>
+                                <p><strong>Project Name:</strong> {{ site_data.investigation.id_investigation.project_name }}</p>
+                                <p><strong>Period:</strong> {{ site_data.investigation.id_investigation.period }}</p>
+                                {% if site_data.investigation.id_investigation.id_investigation_type %}
+                                    <p><strong>Investigation Type:</strong> {{ site_data.investigation.id_investigation.id_investigation_type }}</p>
+                                {% endif %}
+                            {% endif %}
+
+                            <!-- Bibliography -->
+                            {% if site_data.bibliography and site_data.bibliography.id_bibliography %}
+                                <hr>
+                                <h5>Bibliography</h5>
+                                <p><strong>Title:</strong> {{ site_data.bibliography.id_bibliography.title }}</p>
+                                {% if site_data.bibliography.id_bibliography.author %}
+                                    <p><strong>Author:</strong> {{ site_data.bibliography.id_bibliography.author }}</p>
+                                {% endif %}
+                                {% if site_data.bibliography.id_bibliography.year %}
+                                    <p><strong>Year:</strong> {{ site_data.bibliography.id_bibliography.year }}</p>
+                                {% endif %}
+                                {% if site_data.bibliography.id_bibliography.doi %}
+                                    <p><strong>DOI:</strong> {{ site_data.bibliography.id_bibliography.doi }}</p>
+                                {% endif %}
+                            {% endif %}
+
+                            <!-- Sources -->
+                            {% if site_data.sources and site_data.sources.id_sources %}
+                                <hr>
+                                <h5>Sources</h5>
+                                <p><strong>Name:</strong> {{ site_data.sources.id_sources.name }}</p>
+                                {% if site_data.sources.id_sources.id_chronology %}
+                                    <p><strong>Chronology:</strong> {{ site_data.sources.id_sources.id_chronology }}</p>
+                                {% endif %}
+                            {% endif %}
+
+                            <!-- Related Documentation -->
+                            {% if site_data.related_doc %}
+                                <hr>
+                                <h5>Related Documentation</h5>
+                                <p><strong>Name:</strong> {{ site_data.related_doc.name }}</p>
+                                {% if site_data.related_doc.author %}
+                                    <p><strong>Author:</strong> {{ site_data.related_doc.author }}</p>
+                                {% endif %}
+                                {% if site_data.related_doc.year %}
+                                    <p><strong>Year:</strong> {{ site_data.related_doc.year }}</p>
+                                {% endif %}
+                            {% endif %}
+
+                            <!-- Site Evidences -->
+                            {% if site_data.evidences %}
+                                <hr>
+                                <h5>Archaeological Evidence at this Site ({{ site_data.evidences.count }})</h5>
+                                <ul>
+                                    {% for evidence in site_data.evidences %}
+                                        <li>{{ evidence.description|default:"Evidence #"|add:evidence.id }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+        <!-- Archaeological Evidence Section -->
+        {% if evidences_with_details %}
+            <div class="research-card mb-4">
+                <div class="section-header section-header-warning">
+                    <i class="fas fa-shovel"></i>
+                    Archaeological Evidence <span class="badge badge-light ml-2">{{ evidences_with_details|length }}</span>
+                </div>
+                <div class="research-card-body">
+                    {% for evidence_data in evidences_with_details %}
+                        <div class="evidence-card">
+                            <div class="evidence-card-header">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-archway"></i> Evidence #{{ evidence_data.evidence.id }}
+                                    </h5>
+                                    {% if user.is_authenticated %}
+                                        {% if user.is_staff or user == research_owner %}
+                                            <div class="mt-2 mt-md-0">
+                                                <a href="{% url 'evidence_update' evidence_data.evidence.pk %}" class="btn btn-warning-modern btn-modern btn-sm">
+                                                    <i class="fas fa-edit"></i> Update
+                                                </a>
+                                                <a href="{% url 'evidence_delete' evidence_data.evidence.pk %}" class="btn btn-danger-modern btn-modern btn-sm">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="evidence-card-body">
+                                <div class="detail-row">
+                                <div class="col-md-6">
+                                    {% if evidence_data.evidence.description %}
+                                        <p><strong>Description:</strong> {{ evidence_data.evidence.description }}</p>
+                                    {% endif %}
+                                    {% if evidence_data.evidence.id_country %}
+                                        <p><strong>Country:</strong> {{ evidence_data.evidence.id_country }}</p>
+                                    {% endif %}
+                                    {% if evidence_data.evidence.id_region %}
+                                        <p><strong>Region:</strong> {{ evidence_data.evidence.id_region }}</p>
+                                    {% endif %}
+                                    {% if evidence_data.evidence.id_municipality %}
+                                        <p><strong>Municipality:</strong> {{ evidence_data.evidence.id_municipality }}</p>
+                                    {% endif %}
+                                    {% if evidence_data.evidence.elevation %}
+                                        <p><strong>Elevation:</strong> {{ evidence_data.evidence.elevation }} m</p>
+                                    {% endif %}
+                                    {% if evidence_data.evidence.id_archaeological_evidence_typology %}
+                                        <p><strong>Typology:</strong> {{ evidence_data.evidence.id_archaeological_evidence_typology }}</p>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    {% if evidence_data.evidence.additional_topography %}
+                                        <p><strong>Topography:</strong> {{ evidence_data.evidence.additional_topography }}</p>
+                                    {% endif %}
+                                    {% if evidence_data.evidence.id_physiography %}
+                                        <p><strong>Physiography:</strong> {{ evidence_data.evidence.id_physiography }}</p>
+                                    {% endif %}
+                                    {% if evidence_data.evidence.id_positioning_mode %}
+                                        <p><strong>Positioning Mode:</strong> {{ evidence_data.evidence.id_positioning_mode }}</p>
+                                    {% endif %}
+                                    {% if evidence_data.evidence.id_positional_accuracy %}
+                                        <p><strong>Positional Accuracy:</strong> {{ evidence_data.evidence.id_positional_accuracy }}</p>
+                                    {% endif %}
+                                    {% if evidence_data.evidence.id_base_map %}
+                                        <p><strong>Base Map:</strong> {{ evidence_data.evidence.id_base_map }}</p>
+                                    {% endif %}
+                                    {% if evidence_data.evidence.id_first_discovery_method %}
+                                        <p><strong>Discovery Method:</strong> {{ evidence_data.evidence.id_first_discovery_method }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                                    <!-- Evidence Bibliography -->
+                                    {% if evidence_data.bibliography and evidence_data.bibliography.id_bibliography %}
+                                        <hr class="my-4">
+                                        <h6 class="mb-3"><i class="fas fa-book"></i> Bibliography</h6>
+                                        <div class="detail-row">
+                                            <div class="detail-item" style="flex: 1 1 100%;">
+                                                <strong><i class="fas fa-heading"></i> Title</strong>
+                                                {{ evidence_data.bibliography.id_bibliography.title }}
+                                            </div>
+                                            {% if evidence_data.bibliography.id_bibliography.author %}
+                                                <div class="detail-item">
+                                                    <strong><i class="fas fa-user"></i> Author</strong>
+                                                    {{ evidence_data.bibliography.id_bibliography.author }}
+                                                </div>
+                                            {% endif %}
+                                            {% if evidence_data.bibliography.id_bibliography.year %}
+                                                <div class="detail-item">
+                                                    <strong><i class="fas fa-calendar"></i> Year</strong>
+                                                    {{ evidence_data.bibliography.id_bibliography.year }}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+
+                                    <!-- Evidence Sources -->
+                                    {% if evidence_data.sources and evidence_data.sources.id_sources %}
+                                        <hr class="my-4">
+                                        <h6 class="mb-3"><i class="fas fa-file-alt"></i> Sources</h6>
+                                        <div class="detail-row">
+                                            <div class="detail-item">
+                                                <strong><i class="fas fa-file-signature"></i> Name</strong>
+                                                {{ evidence_data.sources.id_sources.name }}
+                                            </div>
+                                            {% if evidence_data.sources.id_sources.id_chronology %}
+                                                <div class="detail-item">
+                                                    <strong><i class="fas fa-clock"></i> Chronology</strong>
+                                                    {{ evidence_data.sources.id_sources.id_chronology }}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+
+                                    <!-- Evidence Related Documentation -->
+                                    {% if evidence_data.related_doc %}
+                                        <hr class="my-4">
+                                        <h6 class="mb-3"><i class="fas fa-folder-open"></i> Related Documentation</h6>
+                                        <div class="detail-row">
+                                            <div class="detail-item">
+                                                <strong><i class="fas fa-file"></i> Name</strong>
+                                                {{ evidence_data.related_doc.name }}
+                                            </div>
+                                            {% if evidence_data.related_doc.author %}
+                                                <div class="detail-item">
+                                                    <strong><i class="fas fa-user"></i> Author</strong>
+                                                    {{ evidence_data.related_doc.author }}
+                                                </div>
+                                            {% endif %}
+                                            {% if evidence_data.related_doc.year %}
+                                                <div class="detail-item">
+                                                    <strong><i class="fas fa-calendar"></i> Year</strong>
+                                                    {{ evidence_data.related_doc.year }}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+        <!-- Back Button -->
+        <div class="mt-4 text-center">
+            <a href="{% url 'public-research-list' %}" class="btn btn-primary-modern btn-modern">
+                <i class="fas fa-arrow-left"></i> Back to Research List
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+

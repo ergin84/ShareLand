@@ -28,6 +28,7 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" >
     <link rel="stylesheet" href="{% static 'frontend/main.css' %}">
+    <link rel="stylesheet" href="{% static 'frontend/navbar.css' %}">
     {% if title %}
         <title>SHAReLAND - {{title}}</title>
     {% else %}
@@ -36,56 +37,131 @@
 
 </head>
   <body>
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-                <a class="navbar-brand font-weight-bold" href="{% url 'home' %}"><i class="fas fa-file"></i> SHAReLand</a>
-                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-                  <span class="navbar-toggler-icon"></span>
-                </button>
-              
-                <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                  <ul class="navbar-nav mr-auto">
-                    <li class="nav-item active">
-                      <a class="nav-link" href="{% url 'home' %}"><i class="fas fa-home"></i> Home <span class="sr-only">(current)</span></a>
-                    </li>
-                   
+    <!-- Top Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark shareland-navbar sticky-top">
+      <div class="container-fluid">
+        <!-- Logo & Brand -->
+        <a class="navbar-brand shareland-brand" href="{% url 'home' %}">
+          <img src="{% static 'frontend/logo.svg' %}" alt="SHAReLAND Logo" class="navbar-logo">
+          <span class="brand-text">SHAReLand</span>
+        </a>
 
-                    
-                  </ul>
+        <!-- Mobile Toggle -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" 
+                aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
 
-              
-                    {% if user.is_authenticated %}
-                    <a href="{% url 'user-researches' user %}" class="btn text-white m-2"><i class="fas fa-user-shield"></i> My Research's</a>
-                    <a href="{% url 'create-research' %} " class="btn text-white m-2"><i class="fas fa-user-edit"></i> New Research</a>
-                    <a href="{% url 'profile' %} " class="btn text-white m-2"><i class="fas fa-user"></i> {{ user.username }}</a>
-                    <form action="{% url 'logout' %}" method="post" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn text-white m-2">
-                            <i class="fas fa-sign-out-alt"></i> Log Out
-                        </button>
+        <!-- Navigation Content -->
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <!-- Main Menu (Left) -->
+          <ul class="navbar-nav me-auto">
+            <li class="nav-item">
+              <a class="nav-link active" href="{% url 'home' %}">
+                <i class="fas fa-home"></i> Home
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'research-catalog' %}">
+                <i class="fas fa-sitemap"></i> Research Catalog
+              </a>
+            </li>
+          </ul>
+
+          <!-- User Menu (Right) -->
+          <ul class="navbar-nav navbar-right-menu">
+            {% if user.is_authenticated %}
+              <!-- Research Dropdown -->
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="researchDropdown" role="button" 
+                   data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="fas fa-flask"></i> Research
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="researchDropdown">
+                  <li><a class="dropdown-item" href="{% url 'user-researches' user %}">
+                    <i class="fas fa-list"></i> My Research
+                  </a></li>
+                  <li><a class="dropdown-item" href="{% url 'create-research' %}">
+                    <i class="fas fa-plus-circle"></i> New Research
+                  </a></li>
+                </ul>
+              </li>
+
+              <!-- Admin Dropdown (if staff) -->
+              {% if user.is_staff %}
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" 
+                   data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="fas fa-cog"></i> Admin
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminDropdown">
+                  <li><a class="dropdown-item" href="{% url 'database_browser' %}">
+                    <i class="fas fa-database"></i> Database Browser
+                  </a></li>
+                  <li><a class="dropdown-item" href="{% url 'audit_log_list' %}">
+                    <i class="fas fa-shield-alt"></i> Audit Logs
+                  </a></li>
+                </ul>
+              </li>
+              {% endif %}
+
+              <!-- User Dropdown -->
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle user-menu" href="#" id="userDropdown" role="button" 
+                   data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="fas fa-user-circle"></i> {{ user.username }}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                  <li><a class="dropdown-item" href="{% url 'profile' %}">
+                    <i class="fas fa-user"></i> Profile
+                  </a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <form action="{% url 'logout' %}" method="post" style="display: contents;">
+                      {% csrf_token %}
+                      <button type="submit" class="dropdown-item">
+                        <i class="fas fa-sign-out-alt"></i> Log Out
+                      </button>
                     </form>
-                    
-                    {% else %}
-                    <a href="{% url 'login' %} " class="btn text-white m-2"><i class="fas fa-user-tie"></i> Log In</a>
-                   
-                    <a href="{% url 'register' %} " class="btn text-white m-2"> <i class="fas fa-sign-in-alt"></i> Sign Up</a>
-                    {% endif %}
-                  
-                </div>
-              </nav>
-      <div class="container my-bg">
-        {% if messages %}
-          {% for message in messages %}
-              <div class="alert alert-{{ message.tags }}">
-                {{ message }}
-              </div>
-          {% endfor %}
-        {% endif %}
-    {% block content %}
-      
-    {% endblock  %}
-</div> 
-    <!-- Optional JavaScript -->
-    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+                  </li>
+                </ul>
+              </li>
+
+            {% else %}
+              <!-- Not Authenticated -->
+              <li class="nav-item">
+                <a class="nav-link btn-nav-login" href="{% url 'login' %}">
+                  <i class="fas fa-sign-in-alt"></i> Log In
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link btn-nav-signup" href="{% url 'register' %}">
+                  <i class="fas fa-user-plus"></i> Sign Up
+                </a>
+              </li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Messages -->
+    <div class="container my-bg">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <!-- Main Content -->
+      {% block content %}
+      {% endblock %}
+    </div>
+
+    <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>

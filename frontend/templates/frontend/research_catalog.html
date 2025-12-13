@@ -1,0 +1,220 @@
+{% extends "frontend/base.html" %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'frontend/public_research.css' %}">
+<style>
+  .catalog-hero {
+    padding: 32px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 20px rgba(30, 64, 175, 0.15);
+  }
+  .catalog-hero h1 {
+    font-size: 2.2rem;
+    margin-bottom: 8px;
+    margin-top: 0;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.5px;
+  }
+  .catalog-hero h1 i {
+    margin-right: 12px;
+    color: #60a5fa;
+  }
+  .catalog-hero p {
+    margin: 0;
+    opacity: 0.95;
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: #e0e7ff;
+  }
+  .tree-card {background: #fff;border-radius: 14px;box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);padding: 18px 20px;margin-top: 18px;border: 1px solid #e8eef5;}
+  .tree-header {display: flex;flex-wrap: wrap;align-items: baseline;gap: 10px;justify-content: space-between;}
+  .tree-title {font-size: 1.2rem;font-weight: 700;color: #102542;}
+  .tree-meta {display: flex;flex-wrap: wrap;gap: 8px;font-size: 0.9rem;color: #4a5568;}
+  .pill {display: inline-flex;align-items: center;gap: 6px;padding: 6px 10px;border-radius: 999px;background: #edf2f7;color: #2d3748;font-size: 0.82rem;font-weight: 600;}
+  .pill.warning {background: #fff7ed;color: #9c4221;}
+  .tree-body {margin-top: 14px;}
+  .tree-section {margin-bottom: 12px;}
+  .tree-label {font-weight: 700;color: #0f172a;margin-bottom: 8px;display: flex;align-items: center;gap: 8px;}
+  .tree-list {list-style: none;padding-left: 0;position: relative;margin: 0;}
+  .tree-list > li {position: relative;padding-left: 24px;margin-bottom: 8px;}
+  .tree-list > li::before {content: "";position: absolute;left: 8px;top: 0;height: 100%;width: 2px;background: #d7e2ec;border-radius: 3px;}
+  .tree-list > li:last-child::before {height: 18px;}
+  .tree-item {padding: 10px 12px;border-radius: 10px;background: #f7fafc;border: 1px solid #e3edf5;display: flex;flex-direction: column;gap: 4px;}
+  .tree-item a {color: #0f3d68;font-weight: 700;text-decoration: none;}
+  .tree-item a:hover {text-decoration: underline;}
+  .tree-subtext {font-size: 0.85rem;color: #4a5568;}
+  .nested {margin-top: 10px;padding-left: 14px;}
+  .empty-note {text-align: center;padding: 32px 16px;border: 1px dashed #cbd5e0;border-radius: 12px;color: #4a5568;background: #f8fafc;}
+  .tree-footer {margin-top: 10px;display: flex;flex-wrap: wrap;gap: 8px;}
+  .btn-slim {padding: 8px 12px;border-radius: 10px;border: 1px solid #0f3d68;color: #0f3d68;text-decoration: none;font-weight: 700;display: inline-flex;align-items: center;gap: 8px;}
+  .btn-slim:hover {background: #0f3d68;color: #fff;}
+</style>
+
+<div class="container mt-4 mb-4">
+  <div class="catalog-hero">
+    <h1><i class="fas fa-sitemap"></i> Research Catalog</h1>
+    <p>Browse researches with their sites and archaeological evidences in one tree view.</p>
+  </div>
+
+  <!-- Search Form -->
+  <div style="margin-top: 20px; margin-bottom: 20px;">
+    <form method="get" style="display: flex; gap: 10px;">
+      <input 
+        type="text" 
+        name="q" 
+        placeholder="Search by research title, abstract, or keywords..." 
+        value="{{ search_query }}" 
+        class="form-control" 
+        style="flex: 1;"
+      >
+      <button type="submit" class="btn btn-primary">Search</button>
+      {% if search_query %}
+        <a href="{% url 'research-catalog' %}" class="btn btn-secondary">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+
+  {% if search_query %}
+    <div style="margin-bottom: 16px; padding: 12px 16px; background: #e7f3ff; border-left: 4px solid #0f3d68; border-radius: 6px;">
+      <strong>Search Results:</strong> Found {{ paginator.count }} research record{{ paginator.count|pluralize }} for "{{ search_query }}"
+    </div>
+  {% endif %}
+
+  {% if catalog_entries %}
+    {% for entry in catalog_entries %}
+      <div class="tree-card">
+        <div class="tree-header">
+          <div>
+            <div class="tree-title">
+              <a href="{% url 'public-research-detail' entry.research.id %}" class="text-decoration-none text-reset">
+                {{ entry.research.title|default:"Untitled Research" }}
+              </a>
+            </div>
+            <div class="tree-meta">
+              {% if entry.research.year %}<span class="pill"><i class="fas fa-calendar-alt"></i> {{ entry.research.year }}</span>{% endif %}
+              {% if entry.research.type %}<span class="pill warning"><i class="fas fa-tag"></i> {{ entry.research.type }}</span>{% endif %}
+              {% if entry.research.submitted_by %}<span class="pill"><i class="fas fa-user"></i> {{ entry.research.submitted_by.profile.get_display_name }}</span>{% endif %}
+            </div>
+          </div>
+          <div class="pill"><i class="fas fa-map-marker-alt"></i> {{ entry.sites|length }} sites</div>
+        </div>
+
+        <div class="tree-body">
+          {% if entry.direct_evidences %}
+            <div class="tree-section">
+              <div class="tree-label"><i class="fas fa-archway"></i> Evidence linked directly to the research ({{ entry.direct_evidences|length }})</div>
+              <ul class="tree-list">
+                {% for evidence in entry.direct_evidences %}
+                  <li>
+                    <div class="tree-item">
+                      <a href="{% url 'evidence_detail' evidence.id %}">
+                        {% if evidence.evidence_name %}
+                          {{ evidence.evidence_name }}
+                        {% else %}
+                          No title for this evidence
+                        {% endif %}
+                      </a>
+                      {% if evidence.description %}
+                        <div class="tree-subtext">{{ evidence.description|truncatewords:16 }}</div>
+                      {% elif evidence.id_country or evidence.id_region %}
+                        <div class="tree-subtext">
+                          {% if evidence.id_country %}{{ evidence.id_country }}{% endif %}{% if evidence.id_region %} · {{ evidence.id_region }}{% endif %}
+                        </div>
+                      {% endif %}
+                    </div>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+
+          <div class="tree-section">
+            <div class="tree-label"><i class="fas fa-landmark"></i> Sites ({{ entry.sites|length }})</div>
+            {% if entry.sites %}
+              <ul class="tree-list">
+                {% for site in entry.sites %}
+                  <li>
+                    <div class="tree-item">
+                      <a href="{% url 'site_detail' site.site.id %}">
+                        {% if site.site.site_name %}
+                          {{ site.site.site_name }}
+                        {% else %}
+                          Site #{{ site.site.id }}
+                        {% endif %}
+                      </a>
+                      {% if site.site.description %}
+                        <div class="tree-subtext">{{ site.site.description|truncatewords:18 }}</div>
+                      {% elif site.site.locality_name %}
+                        <div class="tree-subtext"><i class="fas fa-map-pin"></i> {{ site.site.locality_name }}</div>
+                      {% endif %}
+                    </div>
+                    {% if site.evidences %}
+                      <ul class="tree-list nested">
+                        {% for evidence in site.evidences %}
+                          <li>
+                            <div class="tree-item">
+                              <a href="{% url 'evidence_detail' evidence.id %}">
+                                {% if evidence.evidence_name %}
+                                  {{ evidence.evidence_name }}
+                                {% else %}
+                                  No title for this evidence
+                                {% endif %}
+                              </a>
+                              {% if evidence.description %}
+                                <div class="tree-subtext">{{ evidence.description|truncatewords:16 }}</div>
+                              {% elif evidence.id_archaeological_evidence_typology %}
+                                <div class="tree-subtext">{{ evidence.id_archaeological_evidence_typology }}</div>
+                              {% endif %}
+                            </div>
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    {% else %}
+                      <div class="tree-subtext mt-2">No evidence linked to this site yet.</div>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="tree-subtext">No sites linked to this research.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="tree-footer">
+          <a class="btn-slim" href="{% url 'public-research-detail' entry.research.id %}"><i class="fas fa-eye"></i> View details</a>
+          <a class="btn-slim" href="{% url 'public-research-list' %}"><i class="fas fa-list"></i> All researches</a>
+        </div>
+      </div>
+    {% endfor %}
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+      <nav style="margin-top: 32px; display: flex; justify-content: center; gap: 8px;">
+        {% if page_obj.has_previous %}
+          <a href="?page=1{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="btn btn-outline-secondary btn-sm">First</a>
+          <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="btn btn-outline-secondary btn-sm">Previous</a>
+        {% endif %}
+
+        <span style="padding: 8px 12px; align-self: center;">
+          Page <strong>{{ page_obj.number }}</strong> of <strong>{{ paginator.num_pages }}</strong>
+        </span>
+
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="btn btn-outline-secondary btn-sm">Next</a>
+          <a href="?page={{ paginator.num_pages }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="btn btn-outline-secondary btn-sm">Last</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <div class="empty-note">
+      <i class="fas fa-search"></i>
+      <p class="mb-0">No research records found yet.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -20,3 +20,4 @@ sqlparse==0.5.3
 tzdata==2025.2
 python-dotenv~=1.1.0
 gunicorn
+folium==0.15.1

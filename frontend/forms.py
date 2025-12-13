@@ -229,15 +229,26 @@ class SiteForm(forms.ModelForm):
 
 
 class ArchaeologicalEvidenceForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Style all fields
+        for field in self.fields:
+            self.fields[field].widget.attrs.update({'class': 'form-control'})
+        # Set default country to Italy (id 113)
+        if not self.initial.get('id_country') and not self.data.get('id_country'):
+            self.fields['id_country'].initial = 113
+
     project_name = forms.CharField(
         max_length=255,
         required=False,
-        label="Nome del progetto")
+        label="Nome del progetto"
+    )
 
     investigation_type = forms.ModelChoiceField(
         queryset=InvestigationType.objects.all(),
         required=False,
-        label="Tipo di indagine")
+        label="Tipo di indagine"
+    )
 
     periodo = forms.CharField(
         max_length=255,
@@ -313,6 +324,7 @@ class ArchaeologicalEvidenceForm(forms.ModelForm):
         model = ArchaeologicalEvidence
         fields = [
             'id_archaeological_evidence_typology',
+            'evidence_name',
             'description',
             'id_country',
             'id_region',
@@ -337,6 +349,7 @@ class ArchaeologicalEvidenceForm(forms.ModelForm):
 
         labels = {
             'id_archaeological_evidence_typology': 'Typology',
+            'evidence_name': 'Evidence Name',
             'description': 'Description',
             'id_country': 'Country',
             'id_region': 'Region',

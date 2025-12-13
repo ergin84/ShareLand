@@ -83,6 +83,41 @@ SHAReLAND is a Django-based web platform designed for the collection, documentat
    python manage.py runserver
    ```
 
+## Deployment
+
+### Docker Deployment
+
+1. Prepare your `.env` file (see `deployment.env.example`).
+2. Deploy with:
+   ```bash
+   ./deployment.sh
+   ```
+   This will sync your code, copy the environment, and restart the Docker stack on your VPS.
+
+### Non-Docker Deployment (Direct VPS)
+
+1. Prepare your `.env` file (see `deployment.env.example`).
+2. Deploy with:
+   ```bash
+   ./deployment_nodocker.sh /path/to/.env
+   ```
+   This will:
+   - Sync code and environment
+   - Install all dependencies (Python, Nginx, Certbot, Supervisor, PostgreSQL)
+   - Set up Gunicorn and Nginx with SSL (Let's Encrypt)
+   - Schedule nightly DB backups to Google Drive (requires `gdrive` CLI and `GDRIVE_FOLDER_ID`)
+   - Set up health checks and auto-restart
+
+## Database Backup
+
+- Nightly at 2am, the database is backed up and uploaded to Google Drive.
+- Configure `GDRIVE_FOLDER_ID` in your `.env`.
+
+## Environment File
+
+- Use `deployment.env.example` as a template for your `.env`.
+- All deployment, DB, mail, and backup settings are loaded from this file.
+
 ## Contribution Guidelines
 
 * Fork the repository and create feature branches

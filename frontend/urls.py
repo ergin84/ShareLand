@@ -11,12 +11,18 @@ from .views import (
     SiteDetailView,
     SiteUpdateView,
     SiteDeleteView,
-
+    PublicResearchListView,
+    PublicResearchDetailView,
+    ResearchCatalogView,
+    AuditLogListView,
 )
 from . import views
 
 urlpatterns = [
     path('', views.home, name='home'),
+    path('public/researches/', PublicResearchListView.as_view(), name='public-research-list'),
+    path('public/research-catalog/', ResearchCatalogView.as_view(), name='research-catalog'),
+    path('public/research/<int:pk>/', PublicResearchDetailView.as_view(), name='public-research-detail'),
     path('user/<str:username>', UserResearchListView.as_view(), name='user-researches'),
     #path('post/<int:pk>/', PostDetailView.as_view(), name='post-detail'),
     path('research/<int:pk>/', ResearchDetailView.as_view(), name='research-detail'),
@@ -39,8 +45,11 @@ urlpatterns = [
     path('site/<int:pk>/update/', SiteUpdateView.as_view(), name='site_update'),
     path('site/<int:pk>/delete/', SiteDeleteView.as_view(), name='site_delete'),
     path('ajax/search-authors/', views.search_authors, name='ajax_search_authors'),
-
-
-
-
+    path('ajax/search-users/', views.search_users_autocomplete, name='ajax_search_users'),
+    path('database-browser/', views.database_browser, name='database_browser'),
+    
+    # Audit logging routes (admin only)
+    path('audit-logs/', AuditLogListView.as_view(), name='audit_log_list'),
+    path('audit-logs/export/', views.audit_log_export, name='audit_log_export'),
 ]
+

@@ -4,10 +4,6 @@ from django.contrib.auth.decorators import login_required
 from .forms import UserRegisterForm, UserUpdateForm, ProfileUpdateForm
 
 
-from django.contrib import messages
-from django.shortcuts import render, redirect
-from .forms import UserRegisterForm
-
 def register(request):
     if request.method == 'POST':
         form = UserRegisterForm(request.POST)
@@ -15,6 +11,15 @@ def register(request):
             user = form.save(commit=False)
             user.is_active = False  # 🔒 User must be activated by admin
             user.save()
+            
+            # Save profile fields
+            profile = user.profile
+            profile.name = form.cleaned_data.get('name', '')
+            profile.surname = form.cleaned_data.get('surname', '')
+            profile.affiliation = form.cleaned_data.get('affiliation', '') or None
+            profile.orcid = form.cleaned_data.get('orcid', '') or None
+            profile.save()
+            
             username = form.cleaned_data.get('username')
             messages.success(request, f'Account created for {username}. Awaiting admin approval.')
             return redirect('login')

@@ -285,6 +285,7 @@ class ArchaeologicalEvidence(models.Model):
                                                             blank=True, null=True,
                                                             db_column='id_archaeological_evidence_typology')
     description = models.TextField(blank=True, null=True)
+    evidence_name = models.CharField(max_length=255, blank=True, null=True)
     id_country = models.ForeignKey(Country, models.DO_NOTHING, db_column='id_country', blank=True, null=True)
     id_region = models.ForeignKey(Region, models.DO_NOTHING, db_column='id_region', blank=True, null=True)
     id_municipality = models.ForeignKey(Municipality, models.DO_NOTHING, db_column='id_municipality', blank=True, null=True )
@@ -335,13 +336,29 @@ class Author(models.Model):
     orcid = models.CharField(blank=True, null=True)
     contact_email = models.EmailField(blank=True, null=True)
     id_anagraphic = models.IntegerField(blank=True, null=True, unique=False)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
+                            related_name='authored_by', db_column='user_id',
+                            help_text='User account linked to this author (optional)')
 
     class Meta:
         db_table = 'author'
-        db_table_comment = 'Ogni utente registrato (anagraphic) può essere anche un autore, ma non è obbligatorio.\t\t\nOgni autore (author) può essere un utente registrato, ma può anche essere una persona esterna al sistema.\t\t\nIl rapporto tra le due tabelle è quindi uno a uno opzionale (1:1 opzionale)\t\t\n'
+        db_table_comment = 'Authors can be linked to user accounts. A user can be an author, and an author can exist without a user account.'
 
     def __str__(self):
         return f'{self.name} {self.surname}'
+
+
+class AuthorUserMapping(models.Model):
+    """Mapping table between Author and User (auth_user)"""
+    id_author = models.OneToOneField(Author, on_delete=models.CASCADE, db_column='id_author', primary_key=True)
+    id_user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='id_user')
+
+    class Meta:
+        db_table = 'author_user_mapping'
+        unique_together = [['id_author', 'id_user']]
+
+    def __str__(self):
+        return f'{self.id_author} - {self.id_user}'
 
 
 class Bibliography(models.Model):
@@ -385,12 +402,13 @@ class Image(models.Model):
     source_url = models.TextField(blank=True, null=True)
     key_words = models.TextField(blank=True, null=True)
     id_site = models.ForeignKey(Site, on_delete=models.CASCADE, blank=True, null=True, db_column='id_site')
+    id_archaeological_evidence = models.ForeignKey('ArchaeologicalEvidence', on_delete=models.CASCADE, blank=True, null=True, db_column='id_archaeological_evidence')
 
     class Meta:
         db_table = 'image'
 
     def __str__(self):
-        return self.file_name
+        return self.file_name or f"Image {self.id}"
 
 
 class ImageScale(models.Model):
