@@ -6,6 +6,50 @@
     <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="{{ seo_description|default:default_seo_description }}">
+    <meta name="keywords" content="{{ seo_keywords|default:'archaeology, archaeological research, archaeological sites, archaeological evidence, research database, open landscapes' }}">
+    <meta name="author" content="SHAReLAND">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{{ seo_url|default:request.build_absolute_uri }}">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="{{ og_type|default:'website' }}">
+    <meta property="og:url" content="{{ seo_url|default:request.build_absolute_uri }}">
+    <meta property="og:title" content="{{ seo_title|default:default_seo_title }}">
+    <meta property="og:description" content="{{ seo_description|default:default_seo_description }}">
+    <meta property="og:image" content="{{ seo_image|default:request.scheme }}://{{ request.get_host }}{% static 'frontend/logo-social.png' %}">
+    <meta property="og:site_name" content="SHAReLAND">
+    <meta property="og:locale" content="en_US">
+    {% if seo_article_published_time %}
+    <meta property="article:published_time" content="{{ seo_article_published_time|date:'c' }}">
+    {% endif %}
+    {% if seo_article_modified_time %}
+    <meta property="article:modified_time" content="{{ seo_article_modified_time|date:'c' }}">
+    {% endif %}
+    {% if seo_article_author %}
+    <meta property="article:author" content="{{ seo_article_author }}">
+    {% endif %}
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="{{ seo_url|default:request.build_absolute_uri }}">
+    <meta name="twitter:title" content="{{ seo_title|default:default_seo_title }}">
+    <meta name="twitter:description" content="{{ seo_description|default:default_seo_description }}">
+    <meta name="twitter:image" content="{{ seo_image|default:request.scheme }}://{{ request.get_host }}{% static 'frontend/logo-social.png' %}">
+    
+    <!-- Schema.org JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "SHAReLAND",
+      "description": "Archaeological Research Database",
+      "url": "{{ request.scheme }}://{{ request.get_host }}"
+    }
+    </script>
+    {% block structured_data %}{% endblock %}
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -29,10 +73,14 @@
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" >
     <link rel="stylesheet" href="{% static 'frontend/main.css' %}">
     <link rel="stylesheet" href="{% static 'frontend/navbar.css' %}">
-    {% if title %}
-        <title>SHAReLAND - {{title}}</title>
+    
+    <!-- Page Title -->
+    {% if seo_title %}
+        <title>{{ seo_title }} | SHAReLAND</title>
+    {% elif title %}
+        <title>SHAReLAND - {{ title }}</title>
     {% else %}
-        <title>SHAReLAND</title>
+        <title>SHAReLAND - Archaeological Research Database</title>
     {% endif %}
 
 </head>

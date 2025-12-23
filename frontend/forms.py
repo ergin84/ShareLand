@@ -1,6 +1,7 @@
 from django import forms
 from .models import Research, Site, ArchaeologicalEvidence, FunctionalClass, Typology, TypologyDetail, Chronology, \
-    InvestigationType, SourcesType, ImageType, ImageScale, SiteToponymy
+    InvestigationType, SourcesType, ImageType, ImageScale, SiteToponymy, PositioningMode, PositionalAccuracy, \
+    FirstDiscoveryMethod
 from django.contrib.gis.geos import Point
 
 class ResearchForm(forms.ModelForm):
@@ -238,6 +239,32 @@ class ArchaeologicalEvidenceForm(forms.ModelForm):
         if not self.initial.get('id_country') and not self.data.get('id_country'):
             self.fields['id_country'].initial = 113
 
+    # These FK fields are required in the model (no blank=True, null=True)
+    id_positioning_mode = forms.ModelChoiceField(
+        queryset=PositioningMode.objects.all(),
+        required=True,
+        label="Modalità di Posizionamento"
+    )
+    
+    id_positional_accuracy = forms.ModelChoiceField(
+        queryset=PositionalAccuracy.objects.all(),
+        required=True,
+        label="Qualità del Posizionamento"
+    )
+    
+    id_first_discovery_method = forms.ModelChoiceField(
+        queryset=FirstDiscoveryMethod.objects.all(),
+        required=True,
+        label="Modalità di rinvenimento (prima scoperta)"
+    )
+    
+    # Geometry field - optional since it's filled via map interaction
+    geometry = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+        label="Geometry"
+    )
+
     project_name = forms.CharField(
         max_length=255,
         required=False,
@@ -386,8 +413,11 @@ class ArchaeologicalEvidenceForm(forms.ModelForm):
             'elevation': forms.NumberInput(attrs={'step': 'any', 'class': 'form-control'}),
         }
 
-        def clean_geometry(self):
-            geometry = self.cleaned_data.get('geometry')
-            if geometry and not geometry.startswith('(('):
-                raise forms.ValidationError("Il campo geometria deve essere nel formato ((x,y),(x,y),...)")
-            return geometry
+    def clean_geometry(self):
+        geometry = self.cleaned_data.get('geometry')
+        # Return None if empty string to avoid "invalid input syntax for type polygon: ''" error
+        if not geometry or geometry.strip() == '':
+            return None
+        if geometry and not geometry.startswith('(('):
+            raise forms.ValidationError("Il campo geometria deve essere nel formato ((x,y),(x,y),...)")
+        return geometry

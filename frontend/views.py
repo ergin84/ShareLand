@@ -1,5 +1,5 @@
 from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.shortcuts import render, get_object_or_404, redirect
@@ -19,7 +19,7 @@ import os
 from django.core.files.storage import default_storage
 from django.conf import settings
 from .models import (
-    Research, Author, Typology, TypologyDetail, ResearchAuthor, Province,
+    Research, Typology, TypologyDetail, ResearchAuthor, Province,
     Municipality, SiteResearch, Investigation, SiteBibliography, Sources, 
     SiteSources, Image, Bibliography, SiteRelatedDocumentation, ArchEvBiblio, 
     ArchEvSources, ArchEvRelatedDoc, ArchEvResearch, SiteInvestigation, 
@@ -29,7 +29,8 @@ from .models import (
 from django.urls import reverse_lazy, reverse
 from django.contrib.staticfiles.views import serve
 from .forms import ResearchForm, SiteForm, ArchaeologicalEvidenceForm
-from .utils import parse_geometry_string, create_folium_map, get_or_create_author_for_user, create_user_and_author
+from .utils import parse_geometry_string, create_folium_map
+from django.views.decorators.http import require_POST
 
 
 
@@ -123,8 +124,13 @@ class PublicResearchDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         research = self.object
 
-        # Get all sites related to this research (use values_list to avoid geometry comparison issues)
-        site_ids = SiteResearch.objects.filter(id_research=research).values_list('id_site_id', flat=True)
+        # Get unique sites related to this research (avoid duplicates from multiple links)
+        site_ids = (
+            SiteResearch.objects
+            .filter(id_research=research)
+            .values_list('id_site_id', flat=True)
+            .distinct()
+        )
         sites = Site.objects.filter(id__in=site_ids)
         
         # Get all archaeological evidence related to this research (directly)
@@ -144,9 +150,14 @@ class PublicResearchDetailView(DetailView):
         all_evidence_ids = set(list(direct_evidence_ids) + list(site_evidence_ids))
         all_evidences = ArchaeologicalEvidence.objects.filter(id__in=all_evidence_ids)
         
-        # Get authors for this research (distinct to avoid duplicates)
-        author_ids = ResearchAuthor.objects.filter(id_research=research).values_list('id_author_id', flat=True).distinct()
-        authors = Author.objects.filter(id__in=author_ids)
+        # Get authors for this research
+        author_ids = list(
+            ResearchAuthor.objects
+            .filter(id_research=research)
+            .values_list('id_author_id', flat=True)
+            .distinct()
+        )
+        authors = User.objects.filter(id__in=author_ids).order_by('last_name', 'first_name', 'email').select_related('profile')
         
         # For each site, get its related data
         sites_with_details = []
@@ -308,25 +319,20 @@ class ResearchCreateView(LoginRequiredMixin, CreateView):
         # === Handle main author ===
         is_self_author = self.request.POST.get('is_self_author')
         if is_self_author == 'yes':
-            # User is the main author - create/get Author and link to current user
-            author = get_or_create_author_for_user(self.request.user)
+            # User is the main author
+            author_user = self.request.user
         else:
             # Search for user or create new one
             user_id = self.request.POST.get('author_user_id')
-            author_id = self.request.POST.get('author_id')
             
             if user_id:
-                # User found - get or create Author for this user
-                user = User.objects.get(pk=user_id)
+                # User found
+                author_user = User.objects.get(pk=user_id)
                 affiliation = self.request.POST.get('author_affiliation', '')
                 orcid = self.request.POST.get('author_orcid', '')
-                author = get_or_create_author_for_user(user, affiliation=affiliation, orcid=orcid)
-            elif author_id:
-                # Existing Author selected
-                author = Author.objects.filter(pk=author_id).first()
-                if not author:
-                    form.add_error(None, 'Selected author not found')
-                    return self.form_invalid(form)
+                # Update profile with author fields
+                from .utils.author_user import get_or_update_user_profile
+                author_user = get_or_update_user_profile(author_user, affiliation=affiliation, orcid=orcid)
             else:
                 # Create new user and author
                 author_name = self.request.POST.get('author_name')
@@ -339,17 +345,15 @@ class ResearchCreateView(LoginRequiredMixin, CreateView):
                     form.add_error(None, 'Name, surname, and email are required for new author')
                     return self.form_invalid(form)
                 
-                # Check if user already exists
-                existing_user = User.objects.filter(email=author_email).first()
-                if existing_user:
-                    author = get_or_create_author_for_user(existing_user, affiliation=affiliation, orcid=orcid)
-                else:
-                    author = create_user_and_author(
-                        author_name, author_surname, author_email, 
-                        affiliation=affiliation, orcid=orcid
-                    )
+                # Use find_or_create_user_as_author to avoid duplicates
+                from .utils.author_user import find_or_create_user_as_author
+                author_user = find_or_create_user_as_author(
+                    author_name, author_surname, author_email,
+                    affiliation=affiliation, orcid=orcid
+                )
 
-        form.instance.author = author
+        # Note: Research model uses ResearchAuthor junction table for authors,
+        # not a direct author field
 
         # === Handle shapefile → geometry ===
         shapefile = self.request.FILES.get('shapefile')
@@ -365,27 +369,22 @@ class ResearchCreateView(LoginRequiredMixin, CreateView):
         self.object = form.save()
 
         # === Add to ResearchAuthor table (using get_or_create to avoid duplicates) ===
-        ResearchAuthor.objects.get_or_create(id_research=self.object, id_author=author)
+        ResearchAuthor.objects.get_or_create(id_research=self.object, id_author=author_user)
 
         # === Handle co-authors ===
         index = 0
         while True:
             co_user_id = self.request.POST.get(f'coauthor_user_id_{index}')
-            co_id = self.request.POST.get(f'coauthor_id_{index}')
             
             if co_user_id:
-                # User found - get or create Author for this user
+                # User found
                 co_user = User.objects.filter(pk=co_user_id).first()
                 if co_user:
                     co_affiliation = self.request.POST.get(f'coauthor_affiliation_{index}', '')
                     co_orcid = self.request.POST.get(f'coauthor_orcid_{index}', '')
-                    co = get_or_create_author_for_user(co_user, affiliation=co_affiliation, orcid=co_orcid)
-                    ResearchAuthor.objects.get_or_create(id_research=self.object, id_author=co)
-            elif co_id:
-                # Existing Author selected
-                co = Author.objects.filter(pk=co_id).first()
-                if co:
-                    ResearchAuthor.objects.get_or_create(id_research=self.object, id_author=co)
+                    from .utils.author_user import get_or_update_user_profile
+                    co_user = get_or_update_user_profile(co_user, affiliation=co_affiliation, orcid=co_orcid)
+                    ResearchAuthor.objects.get_or_create(id_research=self.object, id_author=co_user)
             else:
                 # Check if new co-author fields are provided
                 name = self.request.POST.get(f'coauthor_name_{index}')
@@ -393,21 +392,15 @@ class ResearchCreateView(LoginRequiredMixin, CreateView):
                 email = self.request.POST.get(f'coauthor_email_{index}')
 
                 if name and surname and email:
-                    # Check if user exists
-                    existing_user = User.objects.filter(email=email).first()
-                    if existing_user:
-                        co_affiliation = self.request.POST.get(f'coauthor_affiliation_{index}', '')
-                        co_orcid = self.request.POST.get(f'coauthor_orcid_{index}', '')
-                        co = get_or_create_author_for_user(existing_user, affiliation=co_affiliation, orcid=co_orcid)
-                    else:
-                        # Create new user and author
-                        co_affiliation = self.request.POST.get(f'coauthor_affiliation_{index}', '')
-                        co_orcid = self.request.POST.get(f'coauthor_orcid_{index}', '')
-                        co = create_user_and_author(
-                            name, surname, email,
-                            affiliation=co_affiliation, orcid=co_orcid
-                        )
-                    ResearchAuthor.objects.get_or_create(id_research=self.object, id_author=co)
+                    # Use find_or_create_user_as_author to avoid duplicates
+                    from .utils.author_user import find_or_create_user_as_author
+                    co_affiliation = self.request.POST.get(f'coauthor_affiliation_{index}', '')
+                    co_orcid = self.request.POST.get(f'coauthor_orcid_{index}', '')
+                    co_user = find_or_create_user_as_author(
+                        name, surname, email,
+                        affiliation=co_affiliation, orcid=co_orcid
+                    )
+                    ResearchAuthor.objects.get_or_create(id_research=self.object, id_author=co_user)
                 else:
                     break
             index += 1
@@ -429,7 +422,7 @@ class ResearchDetailView(LoginRequiredMixin, DetailView):
         
         # Get authors for this research (distinct to avoid duplicates)
         author_ids = ResearchAuthor.objects.filter(id_research=research).values_list('id_author_id', flat=True).distinct()
-        authors = Author.objects.filter(id__in=author_ids)
+        authors = User.objects.filter(id__in=author_ids).select_related('profile')
         
         # For each site, get its related data (similar to public view)
         sites_with_details = []
@@ -440,14 +433,29 @@ class ResearchDetailView(LoginRequiredMixin, DetailView):
             ).values_list('id_archaeological_evidence_id', flat=True)
             site_evidences_list = ArchaeologicalEvidence.objects.filter(id__in=site_evidence_ids_list)
             
+            # Get ALL bibliographies for this site (not just first)
+            site_biblios = SiteBibliography.objects.filter(id_site=site).select_related('id_bibliography')
+            bibliographies = [sb.id_bibliography for sb in site_biblios]
+            
+            # Get ALL sources for this site
+            site_sources_links = SiteSources.objects.filter(id_site=site).select_related('id_sources')
+            sources = [ss.id_sources for ss in site_sources_links]
+            
+            # Get ALL related docs for this site
+            related_docs = SiteRelatedDocumentation.objects.filter(id_site=site)
+            
+            # Get ALL images for this site
+            site_images = Image.objects.filter(id_site=site)
+            
             site_data = {
                 'site': site,
                 'toponymy': SiteToponymy.objects.filter(id_site=site).first(),
                 'interpretation': Interpretation.objects.filter(id_site=site).first(),
                 'investigation': SiteInvestigation.objects.filter(id_site=site).select_related('id_investigation').first(),
-                'bibliography': SiteBibliography.objects.filter(id_site=site).select_related('id_bibliography').first(),
-                'sources': SiteSources.objects.filter(id_site=site).select_related('id_sources').first(),
-                'related_doc': SiteRelatedDocumentation.objects.filter(id_site=site).first(),
+                'bibliographies': bibliographies,  # Multiple entries
+                'sources': sources,  # Multiple entries
+                'related_docs': related_docs,  # Multiple entries
+                'images': site_images,  # Multiple entries
                 'evidences': site_evidences_list,
             }
             sites_with_details.append(site_data)
@@ -461,11 +469,26 @@ class ResearchDetailView(LoginRequiredMixin, DetailView):
         # For each evidence, get its related data
         evidences_with_details = []
         for evidence in direct_evidences:
+            # Get ALL bibliographies for this evidence
+            ev_biblios = ArchEvBiblio.objects.filter(id_archaeological_evidence=evidence).select_related('id_bibliography')
+            bibliographies = [eb.id_bibliography for eb in ev_biblios]
+            
+            # Get ALL sources for this evidence
+            ev_sources_links = ArchEvSources.objects.filter(id_archaeological_evidence=evidence).select_related('id_sources')
+            sources = [es.id_sources for es in ev_sources_links]
+            
+            # Get ALL related docs for this evidence
+            related_docs = ArchEvRelatedDoc.objects.filter(id_archaeological_evidence=evidence)
+            
+            # Get ALL images for this evidence
+            ev_images = Image.objects.filter(id_archaeological_evidence=evidence)
+            
             evidence_data = {
                 'evidence': evidence,
-                'bibliography': ArchEvBiblio.objects.filter(id_archaeological_evidence=evidence).select_related('id_bibliography').first(),
-                'sources': ArchEvSources.objects.filter(id_archaeological_evidence=evidence).select_related('id_sources').first(),
-                'related_doc': ArchEvRelatedDoc.objects.filter(id_archaeological_evidence=evidence).first(),
+                'bibliographies': bibliographies,  # Multiple entries
+                'sources': sources,  # Multiple entries
+                'related_docs': related_docs,  # Multiple entries
+                'images': ev_images,  # Multiple entries
             }
             evidences_with_details.append(evidence_data)
 
@@ -510,9 +533,101 @@ class ResearchUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         initial['geometry'] = research.geometry
         return initial
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        research = self.get_object()
+        
+        # Get existing authors for this research
+        author_ids = ResearchAuthor.objects.filter(id_research=research).values_list('id_author_id', flat=True).distinct()
+        authors = User.objects.filter(id__in=author_ids).select_related('profile')
+        context['existing_authors'] = authors
+        
+        return context
+
     def form_valid(self, form):
+        # Handle shapefile → geometry
+        shapefile = self.request.FILES.get('shapefile')
+        if shapefile:
+            try:
+                geometry = extract_geometry_from_shapefile(shapefile)
+                form.instance.geometry = geometry
+            except ValidationError as e:
+                form.add_error('shapefile', e)
+                return self.form_invalid(form)
+
+        # Save research
         form.instance.submitted_by = self.request.user
-        return super().form_valid(form)
+        self.object = form.save()
+
+        # Update authors - remove old and add new
+        # First, delete existing author relationships for this research
+        ResearchAuthor.objects.filter(id_research=self.object).delete()
+
+        # Handle main author
+        is_self_author = self.request.POST.get('is_self_author')
+        if is_self_author == 'yes':
+            author_user = self.request.user
+        else:
+            user_id = self.request.POST.get('author_user_id')
+            
+            if user_id:
+                author_user = User.objects.get(pk=user_id)
+                affiliation = self.request.POST.get('author_affiliation', '')
+                orcid = self.request.POST.get('author_orcid', '')
+                from .utils.author_user import get_or_update_user_profile
+                author_user = get_or_update_user_profile(author_user, affiliation=affiliation, orcid=orcid)
+            else:
+                author_name = self.request.POST.get('author_name')
+                author_surname = self.request.POST.get('author_surname')
+                author_email = self.request.POST.get('author_email')
+                affiliation = self.request.POST.get('author_affiliation', '')
+                orcid = self.request.POST.get('author_orcid', '')
+                
+                if not author_name or not author_surname or not author_email:
+                    form.add_error(None, 'Name, surname, and email are required for new author')
+                    return self.form_invalid(form)
+                
+                from .utils.author_user import find_or_create_user_as_author
+                author_user = find_or_create_user_as_author(
+                    author_name, author_surname, author_email,
+                    affiliation=affiliation, orcid=orcid
+                )
+
+        # Add main author to ResearchAuthor table
+        ResearchAuthor.objects.get_or_create(id_research=self.object, id_author=author_user)
+
+        # Handle co-authors
+        index = 0
+        while True:
+            co_user_id = self.request.POST.get(f'coauthor_user_id_{index}')
+            
+            if co_user_id:
+                co_user = User.objects.filter(pk=co_user_id).first()
+                if co_user:
+                    co_affiliation = self.request.POST.get(f'coauthor_affiliation_{index}', '')
+                    co_orcid = self.request.POST.get(f'coauthor_orcid_{index}', '')
+                    from .utils.author_user import get_or_update_user_profile
+                    co_user = get_or_update_user_profile(co_user, affiliation=co_affiliation, orcid=co_orcid)
+                    ResearchAuthor.objects.get_or_create(id_research=self.object, id_author=co_user)
+            else:
+                name = self.request.POST.get(f'coauthor_name_{index}')
+                surname = self.request.POST.get(f'coauthor_surname_{index}')
+                email = self.request.POST.get(f'coauthor_email_{index}')
+
+                if name and surname and email:
+                    from .utils.author_user import find_or_create_user_as_author
+                    co_affiliation = self.request.POST.get(f'coauthor_affiliation_{index}', '')
+                    co_orcid = self.request.POST.get(f'coauthor_orcid_{index}', '')
+                    co_user = find_or_create_user_as_author(
+                        name, surname, email,
+                        affiliation=co_affiliation, orcid=co_orcid
+                    )
+                    ResearchAuthor.objects.get_or_create(id_research=self.object, id_author=co_user)
+                else:
+                    break
+            index += 1
+
+        return HttpResponseRedirect(self.get_success_url())
 
     def test_func(self):
         """
@@ -586,192 +701,81 @@ from .models import SiteToponymy, Interpretation
 
 def search_authors(request):
     """
-    Search for authors/users by surname (priority), then username, then email.
-    Searches directly in User model (auth_user table), then in Author model.
+    Search for users to add as authors to research.
+    Searches only in auth_user and users_profile tables (single source of truth).
+    No Author table lookups - User is the only source of truth.
     """
     query = request.GET.get('q', '').strip()
     results = []
+    
     if query and len(query) >= 3:  # Minimum 3 characters
-        from users.models import Profile
         from django.db.models import Q
         
-        # Get all user IDs that match any criteria to avoid duplicates
-        matched_user_ids = set()
-        matched_author_emails = set()
+        # Search by last_name (surname) in User model - highest priority
+        user_surname_matches = User.objects.filter(
+            last_name__icontains=query
+        ).select_related('profile').distinct()[:10]
         
-        # 1. Search by surname through Profile (highest priority)
-        profile_surname_matches = Profile.objects.filter(
-            surname__icontains=query
-        ).select_related('user').distinct()
-        surname_user_ids = {p.user.id for p in profile_surname_matches}
-        matched_user_ids.update(surname_user_ids)
+        seen_users = set()
         
-        # 2. Search by username in User model (medium priority)
-        user_username_matches = User.objects.filter(
-            username__icontains=query
-        ).exclude(id__in=matched_user_ids).distinct()
-        username_user_ids = {u.id for u in user_username_matches}
-        matched_user_ids.update(username_user_ids)
-        
-        # 3. Search by email in User model (lowest priority)
-        user_email_matches = User.objects.filter(
-            email__icontains=query
-        ).exclude(id__in=matched_user_ids).distinct()
-        email_user_ids = {u.id for u in user_email_matches}
-        matched_user_ids.update(email_user_ids)
-        
-        # Process surname matches (highest priority)
-        surname_results = []
-        for profile in profile_surname_matches[:10]:
-            user = profile.user
-            matched_author_emails.add(user.email.lower() if user.email else '')
+        def add_user_result(user, match_type):
+            """Helper to add user result if not already seen"""
+            if user.id in seen_users:
+                return
+            seen_users.add(user.id)
             
-            # Check if user has an author record
-            author = Author.objects.filter(user=user).first()
+            # Get profile if exists
+            try:
+                profile = user.profile
+            except:
+                profile = None
             
-            surname_results.append({
+            results.append({
                 'type': 'user',
                 'user_id': user.id,
                 'username': user.username,
-                'id': str(author.id) if author else None,
-                'name': profile.name or user.first_name or '',
-                'surname': profile.surname or user.last_name or '',
+                'name': user.first_name or '',
+                'surname': user.last_name or '',
                 'email': user.email or '',
-                'affiliation': profile.affiliation or '',
-                'orcid': profile.orcid or '',
-                'has_author': author is not None,
-                'match_type': 'surname'
+                'affiliation': profile.affiliation if profile else '',
+                'orcid': profile.orcid if profile else '',
+                'contact_email': profile.contact_email if profile else '',
+                'match_type': match_type
             })
         
-        # Process username matches (medium priority)
-        username_results = []
-        remaining_slots = 10 - len(surname_results)
-        if remaining_slots > 0:
-            for user in user_username_matches[:remaining_slots]:
-                matched_author_emails.add(user.email.lower() if user.email else '')
-                
-                try:
-                    profile = user.profile
-                    # Check if user has an author record
-                    author = Author.objects.filter(user=user).first()
-                    
-                    username_results.append({
-                        'type': 'user',
-                        'user_id': user.id,
-                        'username': user.username,
-                        'id': str(author.id) if author else None,
-                        'name': profile.name or user.first_name or '',
-                        'surname': profile.surname or user.last_name or '',
-                        'email': user.email or '',
-                        'affiliation': profile.affiliation or '',
-                        'orcid': profile.orcid or '',
-                        'has_author': author is not None,
-                        'match_type': 'username'
-                    })
-                except Profile.DoesNotExist:
-                    # User without profile - use User fields directly
-                    author = Author.objects.filter(user=user).first()
-                    
-                    username_results.append({
-                        'type': 'user',
-                        'user_id': user.id,
-                        'username': user.username,
-                        'id': str(author.id) if author else None,
-                        'name': user.first_name or '',
-                        'surname': user.last_name or '',
-                        'email': user.email or '',
-                        'affiliation': '',
-                        'orcid': '',
-                        'has_author': author is not None,
-                        'match_type': 'username'
-                    })
+        # Process surname matches (highest priority)
+        for user in user_surname_matches:
+            add_user_result(user, 'surname')
         
-        # Process email matches (lowest priority)
-        email_results = []
-        remaining_slots = 10 - len(surname_results) - len(username_results)
-        if remaining_slots > 0:
-            for user in user_email_matches[:remaining_slots]:
-                matched_author_emails.add(user.email.lower() if user.email else '')
-                
-                # Check if user has an author record
-                author = Author.objects.filter(user=user).first()
-                
-                # Try to get profile, but don't fail if it doesn't exist
-                try:
-                    profile = user.profile
-                    name = profile.name or user.first_name or ''
-                    surname = profile.surname or user.last_name or ''
-                    affiliation = profile.affiliation or ''
-                    orcid = profile.orcid or ''
-                except (Profile.DoesNotExist, AttributeError):
-                    # User without profile - use User fields directly
-                    name = user.first_name or ''
-                    surname = user.last_name or ''
-                    affiliation = ''
-                    orcid = ''
-                
-                email_results.append({
-                    'type': 'user',
-                    'user_id': user.id,
-                    'username': user.username,
-                    'id': str(author.id) if author else None,
-                    'name': name,
-                    'surname': surname,
-                    'email': user.email or '',
-                    'affiliation': affiliation,
-                    'orcid': orcid,
-                    'has_author': author is not None,
-                    'match_type': 'email'
-                })
-        
-        # Combine results in priority order
-        results.extend(surname_results)
-        results.extend(username_results)
-        results.extend(email_results)
-        
-        # Also search in existing Author model (for authors not linked to users)
-        # Exclude authors whose users we've already shown
+        # Search by first_name (name) - medium priority
         remaining_slots = 10 - len(results)
         if remaining_slots > 0:
-            author_surname_matches = Author.objects.filter(
-                surname__icontains=query,
-                user__isnull=True  # Only authors without linked users
-            ).distinct()[:remaining_slots]
+            user_firstname_matches = User.objects.filter(
+                first_name__icontains=query
+            ).exclude(id__in=seen_users).select_related('profile').distinct()[:remaining_slots]
             
-            for author in author_surname_matches:
-                results.append({
-                    'type': 'author',
-                    'id': str(author.id),
-                    'name': author.name or '',
-                    'surname': author.surname or '',
-                    'email': author.contact_email or '',
-                    'affiliation': author.affiliation or '',
-                    'orcid': author.orcid or '',
-                    'has_author': True,
-                    'match_type': 'surname'
-                })
+            for user in user_firstname_matches:
+                add_user_result(user, 'firstname')
+        
+        # Search by username - medium-low priority
+        remaining_slots = 10 - len(results)
+        if remaining_slots > 0:
+            user_username_matches = User.objects.filter(
+                username__icontains=query
+            ).exclude(id__in=seen_users).select_related('profile').distinct()[:remaining_slots]
             
-            remaining_slots = 10 - len(results)
-            if remaining_slots > 0:
-                author_email_matches = Author.objects.filter(
-                    contact_email__icontains=query,
-                    user__isnull=True  # Only authors without linked users
-                ).exclude(
-                    id__in=[int(a['id']) for a in results if a.get('type') == 'author' and a.get('id')]
-                ).distinct()[:remaining_slots]
-                
-                for author in author_email_matches:
-                    results.append({
-                        'type': 'author',
-                        'id': str(author.id),
-                        'name': author.name or '',
-                        'surname': author.surname or '',
-                        'email': author.contact_email or '',
-                        'affiliation': author.affiliation or '',
-                        'orcid': author.orcid or '',
-                        'has_author': True,
-                        'match_type': 'email'
-                    })
+            for user in user_username_matches:
+                add_user_result(user, 'username')
+        
+        # Search by email - lowest priority
+        remaining_slots = 10 - len(results)
+        if remaining_slots > 0:
+            user_email_matches = User.objects.filter(
+                email__icontains=query
+            ).exclude(id__in=seen_users).select_related('profile').distinct()[:remaining_slots]
+            
+            for user in user_email_matches:
+                add_user_result(user, 'email')
     
     return JsonResponse(results[:10], safe=False)
 
@@ -839,7 +843,7 @@ class SiteCreateView(LoginRequiredMixin, CreateView):
         if research_id:
             try:
                 research = Research.objects.get(pk=research_id)
-                SiteResearch.objects.create(id_site=site, id_research=research)
+                SiteResearch.objects.get_or_create(id_site=site, id_research=research)
             except Research.DoesNotExist:
                 pass
 
@@ -1017,21 +1021,45 @@ class SiteDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         site = self.object
+        
+        # Basic site information
         context['site_toponymy'] = SiteToponymy.objects.filter(id_site=site.id).first()
         context['interpretation'] = Interpretation.objects.filter(id_site=site.id).first()
+        context['site_investigation'] = SiteInvestigation.objects.filter(id_site=site).select_related('id_investigation').first()
+        
+        # Related evidences
         site_evidence_links = SiteArchEvidence.objects.filter(
             id_site=site
         ).select_related('id_archaeological_evidence')
         context['site_evidences'] = [link.id_archaeological_evidence for link in site_evidence_links]
+        
+        # Related researches
         site_research_links = SiteResearch.objects.filter(id_site=site).select_related('id_research')
         context['site_researches'] = [link.id_research for link in site_research_links]
-        context['site_images'] = Image.objects.filter(id_site=site)
-        context['site_investigation'] = SiteInvestigation.objects.filter(id_site=site).select_related('id_investigation').first()
+        
+        # Multiple bibliographies (all entries)
         site_biblios = SiteBibliography.objects.filter(id_site=site).select_related('id_bibliography')
         context['site_bibliographies'] = [sb.id_bibliography for sb in site_biblios]
+        
+        # Multiple sources (all entries)
         site_sources = SiteSources.objects.filter(id_site=site).select_related('id_sources')
         context['site_sources'] = [ss.id_sources for ss in site_sources]
+        
+        # Multiple related documentation (all entries)
         context['site_docs'] = SiteRelatedDocumentation.objects.filter(id_site=site)
+        
+        # Multiple images (all entries)
+        context['site_images'] = Image.objects.filter(id_site=site)
+        
+        # Create Folium map for site geometry
+        map_html = None
+        if site.geometry:
+            map_html = create_folium_map(
+                site.geometry,
+                research_title=site.site_name or "Site Location"
+            )
+        context['map_html'] = map_html
+        
         return context
 
 
@@ -1605,13 +1633,28 @@ class EvidenceDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         evidence = self.object
-        context['arch_ev_biblio'] = ArchEvBiblio.objects.filter(id_archaeological_evidence=evidence.id).first()
-        context['arch_ev_sources'] = ArchEvSources.objects.filter(id_archaeological_evidence=evidence.id).first()
-        context['arch_ev_related_doc'] = ArchEvRelatedDoc.objects.filter(id_archaeological_evidence=evidence.id).first()
+        
+        # Multiple bibliographies (all entries)
+        ev_biblios = ArchEvBiblio.objects.filter(id_archaeological_evidence=evidence.id).select_related('id_bibliography')
+        context['arch_ev_bibliographies'] = [eb.id_bibliography for eb in ev_biblios]
+        
+        # Multiple sources (all entries)
+        ev_sources = ArchEvSources.objects.filter(id_archaeological_evidence=evidence.id).select_related('id_sources')
+        context['arch_ev_sources'] = [es.id_sources for es in ev_sources]
+        
+        # Multiple related documentation (all entries)
+        context['arch_ev_related_docs'] = ArchEvRelatedDoc.objects.filter(id_archaeological_evidence=evidence.id)
+        
+        # Multiple images (all entries)
+        context['evidence_images'] = Image.objects.filter(id_archaeological_evidence=evidence)
+        
+        # Related sites
         site_links = SiteArchEvidence.objects.filter(
             id_archaeological_evidence=evidence
         ).select_related('id_site')
         context['sites'] = [link.id_site for link in site_links]
+        
+        # Related researches (direct and via sites)
         direct_research_ids = ArchEvResearch.objects.filter(
             id_archaeological_evidence=evidence
         ).values_list('id_research', flat=True)
@@ -1621,7 +1664,20 @@ class EvidenceDetailView(DetailView):
             via_sites = SiteResearch.objects.filter(id_site_id__in=site_ids).values_list('id_research_id', flat=True)
             research_ids.update(via_sites)
         context['researches'] = Research.objects.filter(id__in=research_ids) if research_ids else []
-        context['evidence_images'] = Image.objects.filter(id_archaeological_evidence=evidence)
+        
+        # Investigation information
+        if evidence.id_investigation:
+            context['investigation'] = evidence.id_investigation
+        
+        # Create Folium map for evidence geometry
+        map_html = None
+        if evidence.geometry:
+            map_html = create_folium_map(
+                evidence.geometry,
+                research_title=evidence.evidence_name or "Evidence Location"
+            )
+        context['map_html'] = map_html
+        
         return context
 
 class EvidenceUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
@@ -1670,12 +1726,12 @@ class EvidenceUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         initial['id_region'] = evidence.id_region
         initial['id_province'] = evidence.id_province
         initial['id_municipality'] = evidence.id_municipality
-        initial['archaeological_evidence_typology'] = evidence.id_archaeological_evidence_typology
-        initial['chronology'] = evidence.id_chronology
-        initial['positioning_mode'] = evidence.id_positioning_mode
-        initial['positional_accuracy'] = evidence.id_positional_accuracy
-        initial['physiography'] = evidence.id_physiography
-        initial['first_discovery_method'] = evidence.id_first_discovery_method
+        initial['id_archaeological_evidence_typology'] = evidence.id_archaeological_evidence_typology
+        initial['id_chronology'] = evidence.id_chronology
+        initial['id_positioning_mode'] = evidence.id_positioning_mode
+        initial['id_positional_accuracy'] = evidence.id_positional_accuracy
+        initial['id_physiography'] = evidence.id_physiography
+        initial['id_first_discovery_method'] = evidence.id_first_discovery_method
         initial['notes'] = evidence.notes
 
         # Investigation fields
@@ -1710,6 +1766,11 @@ class EvidenceUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return initial
 
     def form_valid(self, form):
+        # Handle empty geometry field - convert to None to avoid "invalid input syntax for type polygon" error
+        geometry = form.cleaned_data.get('geometry')
+        if not geometry or geometry.strip() == '':
+            form.instance.geometry = None
+        
         response = super().form_valid(form)
         arch_ev = self.object
 
@@ -1954,18 +2015,10 @@ def search_users_autocomplete(request):
             affiliation = getattr(user.profile, 'affiliation', '') or ''
             orcid = getattr(user.profile, 'orcid', '') or ''
         
-        # Check if user has an author record
-        author = Author.objects.filter(user=user).first()
-        author_id = author.id if author else None
-        
-        if author:
-            # Use author data if available
-            affiliation = author.affiliation or affiliation
-            orcid = author.orcid or orcid
+        # User is the single source of truth for author data (no Author table)
         
         results.append({
             'user_id': user.id,
-            'author_id': author_id,
             'username': user.username,
             'email': user.email,
             'first_name': user.first_name,
@@ -2142,7 +2195,6 @@ def database_browser(request):
                     sql.Identifier(ref_col)
                 )
             )
-        
         # Build final query
         query = sql.SQL("SELECT {} FROM {} {} LIMIT 100 OFFSET %s").format(
             sql.SQL(", ").join(select_parts),
@@ -2347,4 +2399,182 @@ def audit_log_export(request):
         ])
     
     return response
+
+
+import subprocess
+from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required, user_passes_test
+
+
+def is_staff(user):
+    return user.is_staff or user.is_superuser
+
+@login_required
+@user_passes_test(is_staff)
+def export_database(request):
+    """
+    Export the entire PostgreSQL database in custom format for migration/restore.
+    Only staff/admin users can access.
+    """
+    import datetime
+    from django.conf import settings
+    db_name = os.environ.get('DB_NAME', getattr(settings, 'DATABASES', {}).get('default', {}).get('NAME'))
+    db_user = os.environ.get('DB_USER', getattr(settings, 'DATABASES', {}).get('default', {}).get('USER'))
+    db_password = os.environ.get('DB_PASSWORD', getattr(settings, 'DATABASES', {}).get('default', {}).get('PASSWORD'))
+    db_host = os.environ.get('DB_HOST', getattr(settings, 'DATABASES', {}).get('default', {}).get('HOST', 'localhost'))
+    db_port = os.environ.get('DB_PORT', getattr(settings, 'DATABASES', {}).get('default', {}).get('PORT', '5432'))
+
+    # File name with timestamp
+    now = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{db_name}_backup_{now}.dump"
+
+    # Run pg_dump in custom format
+    env = os.environ.copy()
+    env['PGPASSWORD'] = db_password
+    cmd = [
+        'pg_dump',
+        '-U', db_user,
+        '-h', db_host,
+        '-p', str(db_port),
+        '-Fc',  # custom format
+        db_name
+    ]
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+        response = HttpResponse(proc.stdout, content_type='application/octet-stream')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        # Wait for process to finish and check for errors
+        _, stderr = proc.communicate()
+        if proc.returncode != 0:
+            return HttpResponse(f"Database export failed: {stderr.decode()}", status=500)
+        return response
+    except Exception as e:
+        return HttpResponse(f"Error running pg_dump: {str(e)}", status=500)
+
+
+@login_required
+@user_passes_test(is_staff)
+@require_POST
+def import_database(request):
+    """
+    Import a PostgreSQL backup file (.dump or .sql) and restore the database.
+    Only staff/admin users can access. Shows double warning in UI.
+    """
+    import tempfile
+    import gzip
+    backup_file = request.FILES.get('backup_file')
+    if not backup_file:
+        return HttpResponse("No file uploaded.", status=400)
+
+    # Save uploaded file to temp location
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        for chunk in backup_file.chunks():
+            tmp.write(chunk)
+        tmp_path = tmp.name
+
+    # If gzip, decompress to plain file
+    is_gzip = backup_file.name.endswith('.gz')
+    decompressed_path = None
+    if is_gzip:
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_dec:
+            decompressed_path = tmp_dec.name
+            with gzip.open(tmp_path, 'rb') as gz_in:
+                tmp_dec.write(gz_in.read())
+    # Get DB credentials
+    from django.conf import settings
+    db_name = os.environ.get('DB_NAME', getattr(settings, 'DATABASES', {}).get('default', {}).get('NAME'))
+    db_user = os.environ.get('DB_USER', getattr(settings, 'DATABASES', {}).get('default', {}).get('USER'))
+    db_password = os.environ.get('DB_PASSWORD', getattr(settings, 'DATABASES', {}).get('default', {}).get('PASSWORD'))
+    db_host = os.environ.get('DB_HOST', getattr(settings, 'DATABASES', {}).get('default', {}).get('HOST', 'localhost'))
+    db_port = os.environ.get('DB_PORT', getattr(settings, 'DATABASES', {}).get('default', {}).get('PORT', '5432'))
+    env = os.environ.copy()
+    env['PGPASSWORD'] = db_password
+    # Drop and recreate DB (dangerous!)
+    try:
+        # Terminate connections
+        term = subprocess.run([
+            'psql', '-U', db_user, '-h', db_host, '-p', str(db_port),
+            '-c', f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' AND pid <> pg_backend_pid();"
+        ], env=env, capture_output=True, text=True)
+        if term.returncode != 0:
+            raise Exception(term.stderr)
+
+        drop = subprocess.run([
+            'dropdb', '-U', db_user, '-h', db_host, '-p', str(db_port), db_name
+        ], env=env, capture_output=True, text=True)
+        if drop.returncode != 0:
+            raise Exception(drop.stderr)
+
+        create = subprocess.run([
+            'createdb', '-U', db_user, '-h', db_host, '-p', str(db_port), db_name
+        ], env=env, capture_output=True, text=True)
+        if create.returncode != 0:
+            raise Exception(create.stderr)
+
+        # Restore
+        restore_target = decompressed_path or tmp_path
+        if backup_file.name.endswith('.sql') or (is_gzip and backup_file.name.endswith('.sql.gz')):
+            restore_cmd = [
+                'psql', '-U', db_user, '-h', db_host, '-p', str(db_port), '-d', db_name, '-f', restore_target
+            ]
+        else:
+            restore_cmd = [
+                'pg_restore', '-U', db_user, '-h', db_host, '-p', str(db_port), '-d', db_name, restore_target
+            ]
+
+        restore = subprocess.run(restore_cmd, env=env, capture_output=True, text=True)
+        if restore.returncode != 0:
+            # Fallback: handle transaction_timeout (or other) by converting to SQL and stripping problematic settings
+            if 'transaction_timeout' in restore.stderr:
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.sql') as tmp_sql:
+                    sql_path = tmp_sql.name
+                # Convert to plain SQL
+                conv = subprocess.run([
+                    'pg_restore', '-U', db_user, '-h', db_host, '-p', str(db_port),
+                    '-f', sql_path, restore_target
+                ], env=env, capture_output=True, text=True)
+                if conv.returncode != 0:
+                    raise Exception(restore.stderr + "\n" + conv.stderr)
+                # Strip problematic setting
+                with open(sql_path, 'r') as f:
+                    lines = f.readlines()
+                with open(sql_path, 'w') as f:
+                    for line in lines:
+                        if 'transaction_timeout' in line:
+                            continue
+                        f.write(line)
+                # Apply via psql
+                restore2 = subprocess.run([
+                    'psql', '-U', db_user, '-h', db_host, '-p', str(db_port), '-d', db_name, '-f', sql_path
+                ], env=env, capture_output=True, text=True)
+                if restore2.returncode != 0:
+                    raise Exception(restore.stderr + "\n" + restore2.stderr)
+                os.unlink(sql_path)
+            else:
+                raise Exception(restore.stderr)
+
+        # Cleanup
+        os.unlink(tmp_path)
+        if decompressed_path and os.path.exists(decompressed_path):
+            os.unlink(decompressed_path)
+        return render(request, 'frontend/database_import_result.html', {
+            'status': 'success',
+            'file_name': backup_file.name
+        })
+    except Exception as e:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        if decompressed_path and os.path.exists(decompressed_path):
+            os.unlink(decompressed_path)
+        # Also remove any temp SQL if left
+        try:
+            if 'sql_path' in locals() and os.path.exists(sql_path):
+                os.unlink(sql_path)
+        except Exception:
+            pass
+        return render(request, 'frontend/database_import_result.html', {
+            'status': 'error',
+            'error_message': str(e),
+            'file_name': backup_file.name if backup_file else ''
+        }, status=500)
 

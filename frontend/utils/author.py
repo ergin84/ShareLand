@@ -55,6 +55,16 @@ def get_or_create_author_for_user(user, affiliation=None, orcid=None):
             pass
         return author
     
+    # Also check if author exists by email (user may have not been set initially)
+    if user.email:
+        author = Author.objects.filter(contact_email=user.email).first()
+        if author:
+            # Link the user if not already linked
+            if not author.user:
+                author.user = user
+                author.save()
+            return author
+    
     # Create new Author from user/profile data
     try:
         profile = user.profile
@@ -145,6 +155,62 @@ def create_user_and_author(name, surname, email, affiliation=None, orcid=None, s
     if send_email:
         send_new_user_notification(user, password)
     
+    return author
+
+
+def find_or_create_author(name, surname, email, affiliation=None, orcid=None):
+    """
+    Find an existing author by email first, or create a new one.
+    
+    This prevents duplicate Author records when creating research.
+    If an author with this email exists, return it; otherwise create new.
+    
+    Args:
+        name: Author's first name
+        surname: Author's last name
+        email: Author's email address (used for deduplication)
+        affiliation: Optional affiliation
+        orcid: Optional ORCID identifier
+        
+    Returns:
+        Author instance
+    """
+    # First, check if author exists by email
+    if email:
+        existing = Author.objects.filter(contact_email=email).first()
+        if existing:
+            # Update fields if provided and missing
+            updated = False
+            if name and not existing.name:
+                existing.name = name
+                updated = True
+            if surname and not existing.surname:
+                existing.surname = surname
+                updated = True
+            if affiliation and not existing.affiliation:
+                existing.affiliation = affiliation
+                updated = True
+            if orcid and not existing.orcid:
+                existing.orcid = orcid
+                updated = True
+            if updated:
+                existing.save()
+            return existing
+    
+    # Check if user exists by email; if so, get/create author for that user
+    if email:
+        user = User.objects.filter(email=email).first()
+        if user:
+            return get_or_create_author_for_user(user, affiliation=affiliation, orcid=orcid)
+    
+    # No existing author or user found, create new author standalone
+    author = Author.objects.create(
+        name=name or '',
+        surname=surname or '',
+        contact_email=email or '',
+        affiliation=affiliation or '',
+        orcid=orcid or ''
+    )
     return author
 
 

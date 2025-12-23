@@ -17,6 +17,7 @@ from .views import (
     AuditLogListView,
 )
 from . import views
+from .health_views import health_check, readiness_check, liveness_check
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -47,6 +48,13 @@ urlpatterns = [
     path('ajax/search-authors/', views.search_authors, name='ajax_search_authors'),
     path('ajax/search-users/', views.search_users_autocomplete, name='ajax_search_users'),
     path('database-browser/', views.database_browser, name='database_browser'),
+    path('database-export/', views.export_database, name='export_database'),
+    path('database-import/', views.import_database, name='import_database'),
+    
+    # Health check endpoints
+    path('health/', health_check, name='health_check'),
+    path('health/ready/', readiness_check, name='readiness_check'),
+    path('health/live/', liveness_check, name='liveness_check'),
     
     # Audit logging routes (admin only)
     path('audit-logs/', AuditLogListView.as_view(), name='audit_log_list'),

@@ -328,39 +328,6 @@ class ArchaeologicalEvidenceTypology(models.Model):
         return self.desc_typology_archaeological_evidence
 
 
-class Author(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(blank=True, null=True)
-    surname = models.CharField(blank=True, null=True)
-    affiliation = models.CharField(blank=True, null=True)
-    orcid = models.CharField(blank=True, null=True)
-    contact_email = models.EmailField(blank=True, null=True)
-    id_anagraphic = models.IntegerField(blank=True, null=True, unique=False)
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
-                            related_name='authored_by', db_column='user_id',
-                            help_text='User account linked to this author (optional)')
-
-    class Meta:
-        db_table = 'author'
-        db_table_comment = 'Authors can be linked to user accounts. A user can be an author, and an author can exist without a user account.'
-
-    def __str__(self):
-        return f'{self.name} {self.surname}'
-
-
-class AuthorUserMapping(models.Model):
-    """Mapping table between Author and User (auth_user)"""
-    id_author = models.OneToOneField(Author, on_delete=models.CASCADE, db_column='id_author', primary_key=True)
-    id_user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='id_user')
-
-    class Meta:
-        db_table = 'author_user_mapping'
-        unique_together = [['id_author', 'id_user']]
-
-    def __str__(self):
-        return f'{self.id_author} - {self.id_user}'
-
-
 class Bibliography(models.Model):
     title = models.CharField(blank=True, null=True)
     author = models.CharField(blank=True, null=True)
@@ -499,10 +466,15 @@ class Research(models.Model):
 
 class ResearchAuthor(models.Model):
     id_research = models.ForeignKey(Research, on_delete=models.CASCADE, db_column='id_research', blank=True, null=True)
-    id_author = models.ForeignKey(Author, on_delete=models.CASCADE, db_column='id_author', blank=True, null=True)
+    # id_author now points to User (auth_user table), column is id_author_id in database
+    id_author = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True, 
+                                 related_name='research_authorships')
 
     class Meta:
         db_table = 'research_author'
+        constraints = [
+            models.UniqueConstraint(fields=['id_research', 'id_author'], name='unique_research_author_pair')
+        ]
 
     def __str__(self):
         return f'{self.id_research} - {self.id_author}'
@@ -555,6 +527,9 @@ class SiteResearch(models.Model):
 
     class Meta:
         db_table = 'site_research'
+        constraints = [
+            models.UniqueConstraint(fields=['id_site', 'id_research'], name='unique_site_research_pair')
+        ]
 
     def __str__(self):
         return f'{self.id_site} - {self.id_research}'

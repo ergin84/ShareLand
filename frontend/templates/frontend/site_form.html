@@ -781,12 +781,11 @@
         let currentTab = 0;
         const tabOrder = ['general', 'positioning', 'landscape', 'interpretation', 'relationship', 'research', 'documentation', 'notes'];
         
-        // Required fields per tab
+        // Required fields per tab (must match form field required=True definitions)
         const requiredFields = {
-            general: ['id_site_name', 'id_id_country', 'id_id_region', 'id_id_province', 'id_id_municipality'],
-            positioning: ['id_id_positioning_mode', 'id_id_positional_accuracy'],
-            interpretation: ['id_functional_class', 'id_chronology'],
-            research: ['id_id_first_discovery_method']
+            general: ['id_site_name'],  // site_name is the only required field in Site model
+            interpretation: ['id_functional_class', 'id_chronology'],  // functional_class and chronology have required=True
+            research: []  // id_first_discovery_method has blank=True, null=True
         };
 
         function showTab(index) {

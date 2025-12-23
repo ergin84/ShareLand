@@ -173,7 +173,7 @@
     <div class="wizard-container">
         <h4 class="mb-4"><i class="fas fa-landmark"></i> Nuova Evidenza Archeologica</h4>
         
-        <form method="POST" id="evidenceForm" enctype="multipart/form-data">
+        <form method="POST" id="evidenceForm" enctype="multipart/form-data" novalidate>
             {% csrf_token %}
 
             <!-- Wizard Tabs -->
@@ -723,7 +723,7 @@
                                                 </div>
                                                 <div class="ev-image-source-url-input mt-2">
                                                     <label for="ev_image_source_url_field_{{ forloop.counter0 }}">Source URL</label>
-                                                    <input type="url" class="form-control" name="ev_image_source_url_{{ forloop.counter0 }}" id="ev_image_source_url_field_{{ forloop.counter0 }}" value="{{ image.source_url }}">
+                                                    <input type="text" class="form-control" name="ev_image_source_url_{{ forloop.counter0 }}" id="ev_image_source_url_field_{{ forloop.counter0 }}" value="{{ image.source_url }}">
                                                 </div>
                                                 <div class="ev-image-source-upload-input mt-2" style="display:none;">
                                                     <label for="ev_image_file_{{ forloop.counter0 }}">Upload File</label>
@@ -800,7 +800,7 @@
                                                 </div>
                                                 <div class="ev-image-source-url-input mt-2">
                                                     <label for="ev_image_source_url_field_0">Source URL</label>
-                                                    <input type="url" class="form-control" name="ev_image_source_url_0" id="ev_image_source_url_field_0">
+                                                    <input type="text" class="form-control" name="ev_image_source_url_0" id="ev_image_source_url_field_0">
                                                 </div>
                                                 <div class="ev-image-source-upload-input mt-2" style="display:none;">
                                                     <label for="ev_image_file_0">Upload File</label>
@@ -1073,7 +1073,7 @@
                                     </div>
                                     <div class="ev-image-source-url-input mt-2">
                                         <label for="ev_image_source_url_field_${evImageCount}">Source URL</label>
-                                        <input type="url" class="form-control" name="ev_image_source_url_${evImageCount}" id="ev_image_source_url_field_${evImageCount}">
+                                        <input type="text" class="form-control" name="ev_image_source_url_${evImageCount}" id="ev_image_source_url_field_${evImageCount}">
                                     </div>
                                     <div class="ev-image-source-upload-input mt-2" style="display:none;">
                                         <label for="ev_image_file_${evImageCount}">Upload File</label>
@@ -1128,11 +1128,11 @@
         let currentTab = 0;
         const tabOrder = ['general', 'desc', 'pos', 'landscape', 'research', 'docs', 'notes'];
         
-        // Required fields per tab
+        // Required fields per tab (must match ArchaeologicalEvidenceForm required=True definitions)
         const requiredFields = {
-            general: ['id_id_country', 'id_id_region', 'id_id_province', 'id_id_municipality'],
-            desc: ['id_id_archaeological_evidence_typology', 'id_id_chronology'],
-            pos: ['id_id_positioning_mode', 'id_id_positional_accuracy']
+            general: ['id_id_country'],  // only country is required from location fields
+            desc: ['id_id_archaeological_evidence_typology', 'id_id_chronology'],  // typology and chronology required
+            pos: ['id_id_positioning_mode', 'id_id_positional_accuracy', 'id_id_first_discovery_method']  // all required
         };
 
         function showTab(index) {

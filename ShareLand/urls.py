@@ -18,7 +18,18 @@ from django.contrib.auth import views as auth_views
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.sitemaps.views import sitemap
 from users import views as user_views
+from frontend.seo_views import (
+    StaticViewSitemap, ResearchSitemap, SiteSitemap, robots_txt
+)
+
+# Sitemap configuration
+sitemaps = {
+    'static': StaticViewSitemap,
+    'research': ResearchSitemap,
+    'sites': SiteSitemap,
+}
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,6 +37,11 @@ urlpatterns = [
     path('register/', user_views.register, name='register'),
     path('profile/', user_views.profile, name='profile'),
     path('logout/', auth_views.LogoutView.as_view(template_name='users/logout.html'), name='logout'),
+    
+    # SEO routes
+    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
+    path('robots.txt', robots_txt, name='robots_txt'),
+    
     path('', include('frontend.urls')),
 ]
 

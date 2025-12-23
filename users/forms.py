@@ -44,4 +44,7 @@ class UserUpdateForm(forms.ModelForm):
 class ProfileUpdateForm(forms.ModelForm):
     class Meta:
         model = Profile
-        fields = ['image', 'birth_date', 'qualification', 'name', 'surname', 'affiliation', 'orcid']
+        fields = ['image', 'birth_date', 'qualification', 'affiliation', 'orcid', 'contact_email', 'user_roles']
+        widgets = {
+            'user_roles': forms.CheckboxSelectMultiple(),
+        }

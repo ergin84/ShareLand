@@ -90,9 +90,9 @@
                             {% for author in authors %}
                                 <li>
                                     <i class="fas fa-user-circle"></i>
-                                    <strong>{{ author.name }} {{ author.surname }}</strong>
-                                    {% if author.affiliation %} - <em>{{ author.affiliation }}</em>{% endif %}
-                                    {% if author.contact_email %} <small class="text-muted">({{ author.contact_email }})</small>{% endif %}
+                                    <strong>{{ author.first_name }} {{ author.last_name }}</strong>
+                                    {% if author.profile.affiliation %} - <em>{{ author.profile.affiliation }}</em>{% endif %}
+                                    {% if author.email %} <small class="text-muted">({{ author.email }})</small>{% endif %}
                                 </li>
                             {% endfor %}
                         </ul>

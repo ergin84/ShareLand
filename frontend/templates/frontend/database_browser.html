@@ -4,6 +4,38 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'frontend/database_browser.css' %}">
 
+<style>
+  /* Simple modal styling for backup confirmation */
+  .modal-backdrop-custom {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+  }
+  .modal-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 520px;
+    width: 90%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+  .modal-card h3 { margin-top: 0; }
+  .modal-card .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .modal-warning { color: #b94a48; font-weight: 600; }
+</style>
+
 <div class="database-browser-container">
   <!-- Header -->
   <div class="db-header">
@@ -225,6 +257,74 @@
         </div>
       {% endif %}
     </div>
+  </div>
+
+  <!-- Action Buttons (Export/Import) -->
+  <div class="db-actions" style="display: flex; justify-content: flex-end; align-items: center; gap: 1em; margin-top: 1em; margin-bottom: 1em;">
+    <form method="get" action="{% url 'export_database' %}">
+      <button type="submit" class="btn btn-danger">
+        <i class="fas fa-download"></i> Export Database
+      </button>
+    </form>
+    <form id="import-form" method="post" action="{% url 'import_database' %}" enctype="multipart/form-data" style="display:inline;">
+      {% csrf_token %}
+      <label class="btn btn-primary" style="margin-left: 0.5em;">
+        <i class="fas fa-upload"></i> Import Backup
+        <input type="file" name="backup_file" accept=".dump,.sql,.gz" style="display:none;" onchange="handleImportFileChange(event);">
+      </label>
+    </form>
+  </div>
+
+  <!-- Custom confirmation modal for import -->
+  <div class="modal-backdrop-custom" id="import-modal">
+    <div class="modal-card">
+      <h3><i class="fas fa-exclamation-triangle" style="color:#d9534f;"></i> Confirm Backup Import</h3>
+      <p id="import-file-name" style="font-weight:600;"></p>
+      <p class="modal-warning">This will overwrite the current database. All data added after the backup was created will be lost.</p>
+      <p class="modal-warning">This action is irreversible. Continue only if you have a recent backup.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="import-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-danger" id="import-confirm-btn">Yes, Import</button>
+      </div>
+    </div>
+  </div>
+    <script>
+      // Modal-based confirmation for import
+      let pendingImportInput = null;
+      function handleImportFileChange(e) {
+        if (!e.target.files || !e.target.files.length) return;
+        pendingImportInput = e.target;
+        const fileName = e.target.files[0].name;
+        document.getElementById('import-file-name').innerText = `Backup: ${fileName}`;
+        document.getElementById('import-modal').style.display = 'flex';
+      }
+      document.getElementById('import-cancel-btn').addEventListener('click', function() {
+        if (pendingImportInput) pendingImportInput.value = '';
+        pendingImportInput = null;
+        document.getElementById('import-modal').style.display = 'none';
+      });
+      document.getElementById('import-confirm-btn').addEventListener('click', function() {
+        if (pendingImportInput) {
+          document.getElementById('import-modal').style.display = 'none';
+          document.getElementById('import-form').submit();
+        }
+      });
+
+      // Table search functionality
+      document.getElementById('tableSearch').addEventListener('keyup', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const tableItems = document.querySelectorAll('.table-item');
+        tableItems.forEach(item => {
+          const tableName = item.dataset.tableName.toLowerCase();
+          item.style.display = tableName.includes(searchTerm) ? '' : 'none';
+        });
+      });
+    </script>
+  <div class="alert alert-warning" style="margin-top: 1em;">
+    <b>Warning:</b> Importing a backup will <u>overwrite all current data</u> and <u>all changes since the backup will be lost</u>.
+  </div>
+  <div class="alert alert-danger" style="margin-top: 0.5em;">
+    <b>Are you sure?</b> This action is <u>irreversible</u> and will delete all data added after the backup was created.
   </div>
 </div>
 

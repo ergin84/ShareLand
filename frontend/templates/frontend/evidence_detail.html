@@ -39,7 +39,7 @@
             <button class="detail-tab" onclick="showTab(event, 'desc')"><i class="fas fa-align-left"></i> Description</button>
             <button class="detail-tab" onclick="showTab(event, 'pos')"><i class="fas fa-map-pin"></i> Positioning</button>
             <button class="detail-tab" onclick="showTab(event, 'landscape')"><i class="fas fa-mountain"></i> Landscape</button>
-            <button class="detail-tab" onclick="showTab(event, 'research')"><i class="fas fa-flask"></i> Research</button>
+            <button class="detail-tab" onclick="showTab(event, 'research')"><i class="fas fa-flask"></i> Research History</button>
             <button class="detail-tab" onclick="showTab(event, 'docs')"><i class="fas fa-file-alt"></i> Documentation</button>
             <button class="detail-tab" onclick="showTab(event, 'notes')"><i class="fas fa-sticky-note"></i> Notes</button>
         </div>
@@ -58,11 +58,37 @@
 
             <!-- Description Tab -->
             <div id="desc" class="tab-content">
-                {% if evidence.description %}
-                    <p><strong>Description:</strong> {{ evidence.description }}</p>
-                {% else %}
-                    <p class="text-muted">No description recorded.</p>
-                {% endif %}
+                <div class="detail-row">
+                    {% if evidence.id_archaeological_evidence_typology %}
+                        <div class="detail-item"><strong><i class="fas fa-list"></i> Typology</strong> {{ evidence.id_archaeological_evidence_typology }}</div>
+                    {% endif %}
+                    {% if evidence.evidence_name %}
+                        <div class="detail-item"><strong><i class="fas fa-tag"></i> Evidence Name</strong> {{ evidence.evidence_name }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="detail-row mt-2">
+                    {% if evidence.description %}
+                        <div class="detail-item">
+                            <strong><i class="fas fa-align-left"></i> Description</strong>
+                            <div>{{ evidence.description|linebreaksbr }}</div>
+                        </div>
+                    {% else %}
+                        <div class="detail-item text-muted">
+                            <strong><i class="fas fa-align-left"></i> Description</strong>
+                            <div>No description recorded.</div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="detail-row mt-2">
+                    {% if evidence.id_chronology %}
+                        <div class="detail-item"><strong><i class="fas fa-clock"></i> Chronology</strong> {{ evidence.id_chronology }}</div>
+                    {% endif %}
+                    {% if evidence.chronology_certainty_level %}
+                        <div class="detail-item"><strong><i class="fas fa-check-circle"></i> Chronology Certainty Level</strong> {{ evidence.chronology_certainty_level }}</div>
+                    {% endif %}
+                </div>
             </div>
 
             <!-- Positioning Tab -->
@@ -72,127 +98,170 @@
                     {% if evidence.elevation %}<div class="detail-item"><strong><i class="fas fa-mountain"></i> Elevation</strong> {{ evidence.elevation }} m</div>{% endif %}
                     {% if evidence.id_positioning_mode %}<div class="detail-item"><strong><i class="fas fa-crosshairs"></i> Positioning Mode</strong> {{ evidence.id_positioning_mode }}</div>{% endif %}
                     {% if evidence.id_positional_accuracy %}<div class="detail-item"><strong><i class="fas fa-bullseye"></i> Accuracy</strong> {{ evidence.id_positional_accuracy }}</div>{% endif %}
+                    {% if evidence.id_base_map %}<div class="detail-item"><strong><i class="fas fa-map"></i> Base Map</strong> {{ evidence.id_base_map }}</div>{% endif %}
                 </div>
+                                {% if evidence.lat and evidence.lon %}
+                                <div class="mt-3">
+                                    <h6><i class="fas fa-map"></i> Location Map</h6>
+                                    <div id="evidence-map" data-lat="{{ evidence.lat }}" data-lon="{{ evidence.lon }}" style="height: 300px; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0;"></div>
+                                </div>
+                                {% endif %}
             </div>
 
             <!-- Landscape Tab -->
             <div id="landscape" class="tab-content">
                 <div class="detail-row">
                     {% if evidence.id_physiography %}<div class="detail-item"><strong><i class="fas fa-water"></i> Physiography</strong> {{ evidence.id_physiography }}</div>{% endif %}
-                    {% if evidence.id_first_discovery_method %}<div class="detail-item"><strong><i class="fas fa-compass"></i> Discovery Method</strong> {{ evidence.id_first_discovery_method }}</div>{% endif %}
-                    {% if evidence.id_chronology %}<div class="detail-item"><strong><i class="fas fa-clock"></i> Chronology</strong> {{ evidence.id_chronology }}</div>{% endif %}
+                    {% if evidence.additional_topography %}<div class="detail-item"><strong><i class="fas fa-map-signs"></i> Additional Topography</strong> {{ evidence.additional_topography|linebreaksbr }}</div>{% endif %}
                 </div>
             </div>
 
-            <!-- Research Tab -->
+            <!-- Research History Tab -->
             <div id="research" class="tab-content">
-                <div class="row">
-                    {% if sites %}
-                        <div class="col-md-6">
-                            <h6><i class="fas fa-landmark"></i> Sites</h6>
-                            <ul class="list-group list-group-sm">
-                                {% for site in sites %}
-                                    <li class="list-group-item">
-                                        <a href="{% url 'site_detail' site.id %}" class="text-decoration-none">{{ site.site_name|default:"Site #"|add:site.id }}</a>
-                                        {% if site.description %}<div class="text-muted small">{{ site.description|truncatewords:12 }}</div>{% endif %}
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    {% endif %}
-                    {% if researches %}
-                        <div class="col-md-6">
-                            <h6><i class="fas fa-book"></i> Researches</h6>
-                            <ul class="list-group list-group-sm">
-                                {% for research in researches %}
-                                    <li class="list-group-item"><a class="text-decoration-none" href="{% url 'public-research-detail' research.id %}">{{ research.title|default:"Research #"|add:research.id }}</a></li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    {% endif %}
+                <div class="detail-row">
+                    {% if evidence.id_first_discovery_method %}<div class="detail-item"><strong><i class="fas fa-compass"></i> First Discovery Method</strong> {{ evidence.id_first_discovery_method }}</div>{% endif %}
                 </div>
+                {% if evidence.id_investigation %}
+                    <div class="detail-row mt-2">
+                        {% if evidence.id_investigation.project_name %}<div class="detail-item"><strong><i class="fas fa-project-diagram"></i> Project Name</strong> {{ evidence.id_investigation.project_name }}</div>{% endif %}
+                        {% if evidence.id_investigation.id_investigation_type %}<div class="detail-item"><strong><i class="fas fa-search"></i> Investigation Type</strong> {{ evidence.id_investigation.id_investigation_type }}</div>{% endif %}
+                        {% if evidence.id_investigation.period %}<div class="detail-item"><strong><i class="fas fa-calendar"></i> Period</strong> {{ evidence.id_investigation.period }}</div>{% endif %}
+                    </div>
+                {% endif %}
             </div>
 
             <!-- Documentation Tab -->
             <div id="docs" class="tab-content">
-                <div class="row">
-                    {% if arch_ev_bibliographies %}
-                        <div class="col-md-4 mb-3">
-                            <h6><i class="fas fa-book"></i> Bibliographies ({{ arch_ev_bibliographies|length }})</h6>
-                            <ul class="list-group list-group-sm">
-                                {% for biblio in arch_ev_bibliographies %}
-                                    <li class="list-group-item">
-                                        <p class="mb-1"><strong>{{ biblio.title|default:"—" }}</strong></p>
-                                        {% if biblio.author or biblio.year %}<div class="text-muted small">{{ biblio.author }}{% if biblio.year %} ({{ biblio.year }}){% endif %}</div>{% endif %}
-                                    </li>
-                                {% endfor %}
-                            </ul>
+                <!-- Bibliographies Section -->
+                {% if arch_ev_bibliographies %}
+                    <h6 class="mb-3"><i class="fas fa-book"></i> Bibliografia ({{ arch_ev_bibliographies|length }})</h6>
+                    {% for biblio in arch_ev_bibliographies %}
+                        <div class="detail-item mb-2" style="cursor: pointer;" onclick="toggleDetails('biblio-{{ forloop.counter }}')">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong><i class="fas fa-book-open"></i> {{ biblio.title|default:"Untitled" }}</strong>
+                                <i class="fas fa-chevron-down" id="biblio-{{ forloop.counter }}-icon"></i>
+                            </div>
+                            <div class="text-muted small mt-1">{{ biblio.author|default:"—" }}{% if biblio.year %} ({{ biblio.year }}){% endif %}</div>
+                            <div id="biblio-{{ forloop.counter }}" class="detail-content mt-2" style="display: none;">
+                                <div class="row">
+                                    {% if biblio.title %}<div class="col-md-6"><strong>Titolo:</strong> {{ biblio.title }}</div>{% endif %}
+                                    {% if biblio.author %}<div class="col-md-6"><strong>Autore:</strong> {{ biblio.author }}</div>{% endif %}
+                                    {% if biblio.year %}<div class="col-md-4"><strong>Anno:</strong> {{ biblio.year }}</div>{% endif %}
+                                    {% if biblio.doi %}<div class="col-md-4"><strong>DOI:</strong> {{ biblio.doi }}</div>{% endif %}
+                                    {% if biblio.tipo %}<div class="col-md-4"><strong>Tipo:</strong> {{ biblio.tipo }}</div>{% endif %}
+                                </div>
+                            </div>
                         </div>
-                    {% endif %}
-                    {% if arch_ev_sources_list %}
-                        <div class="col-md-4 mb-3">
-                            <h6><i class="fas fa-file-alt"></i> Sources ({{ arch_ev_sources_list|length }})</h6>
-                            <ul class="list-group list-group-sm">
-                                {% for source in arch_ev_sources_list %}
-                                    <li class="list-group-item">
-                                        <p class="mb-1"><strong>{{ source.name|default:"—" }}</strong></p>
-                                        {% if source.id_chronology %}<div class="text-muted small">{{ source.id_chronology }}</div>{% endif %}
-                                    </li>
-                                {% endfor %}
-                            </ul>
+                    {% endfor %}
+                    <hr class="my-3">
+                {% endif %}
+
+                <!-- Sources Section -->
+                {% if arch_ev_sources_list %}
+                    <h6 class="mb-3"><i class="fas fa-file-alt"></i> Fonti ({{ arch_ev_sources_list|length }})</h6>
+                    {% for source in arch_ev_sources_list %}
+                        <div class="detail-item mb-2" style="cursor: pointer;" onclick="toggleDetails('source-{{ forloop.counter }}')">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong><i class="fas fa-scroll"></i> {{ source.name|default:"Unnamed Source" }}</strong>
+                                <i class="fas fa-chevron-down" id="source-{{ forloop.counter }}-icon"></i>
+                            </div>
+                            {% if source.id_chronology %}<div class="text-muted small mt-1">{{ source.id_chronology }}</div>{% endif %}
+                            <div id="source-{{ forloop.counter }}" class="detail-content mt-2" style="display: none;">
+                                <div class="row">
+                                    {% if source.name %}<div class="col-md-6"><strong>Nome:</strong> {{ source.name }}</div>{% endif %}
+                                    {% if source.id_chronology %}<div class="col-md-6"><strong>Cronologia:</strong> {{ source.id_chronology }}</div>{% endif %}
+                                    {% if source.id_sources_type %}<div class="col-md-6"><strong>Tipo:</strong> {{ source.id_sources_type }}</div>{% endif %}
+                                </div>
+                            </div>
                         </div>
-                    {% endif %}
-                    {% if arch_ev_related_docs %}
-                        <div class="col-md-4 mb-3">
-                            <h6><i class="fas fa-paperclip"></i> Related Docs ({{ arch_ev_related_docs|length }})</h6>
-                            <ul class="list-group list-group-sm">
-                                {% for doc in arch_ev_related_docs %}
-                                    <li class="list-group-item">
-                                        <p class="mb-1"><strong>{{ doc.name|default:"—" }}</strong></p>
-                                        {% if doc.author or doc.year %}<div class="text-muted small">{{ doc.author }}{% if doc.year %} ({{ doc.year }}){% endif %}</div>{% endif %}
-                                    </li>
-                                {% endfor %}
-                            </ul>
+                    {% endfor %}
+                    <hr class="my-3">
+                {% endif %}
+
+                <!-- Related Documentation Section -->
+                {% if arch_ev_related_docs %}
+                    <h6 class="mb-3"><i class="fas fa-paperclip"></i> Altra documentazione ({{ arch_ev_related_docs|length }})</h6>
+                    {% for doc in arch_ev_related_docs %}
+                        <div class="detail-item mb-2" style="cursor: pointer;" onclick="toggleDetails('doc-{{ forloop.counter }}')">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong><i class="fas fa-file"></i> {{ doc.name|default:"Unnamed Document" }}</strong>
+                                <i class="fas fa-chevron-down" id="doc-{{ forloop.counter }}-icon"></i>
+                            </div>
+                            {% if doc.author or doc.year %}<div class="text-muted small mt-1">{{ doc.author }}{% if doc.year %} ({{ doc.year }}){% endif %}</div>{% endif %}
+                            <div id="doc-{{ forloop.counter }}" class="detail-content mt-2" style="display: none;">
+                                <div class="row">
+                                    {% if doc.name %}<div class="col-md-6"><strong>Nome:</strong> {{ doc.name }}</div>{% endif %}
+                                    {% if doc.author %}<div class="col-md-6"><strong>Autore:</strong> {{ doc.author }}</div>{% endif %}
+                                    {% if doc.year %}<div class="col-md-4"><strong>Anno:</strong> {{ doc.year }}</div>{% endif %}
+                                    {% if doc.type %}<div class="col-md-4"><strong>Tipo:</strong> {{ doc.type }}</div>{% endif %}
+                                </div>
+                            </div>
                         </div>
-                    {% endif %}
-                </div>
-                
+                    {% endfor %}
+                    <hr class="my-3">
+                {% endif %}
+
                 <!-- Images Section -->
                 {% if evidence_images %}
-                    <hr>
-                    <h6><i class="fas fa-image"></i> Images ({{ evidence_images|length }})</h6>
-                    <div class="row">
-                        {% for image in evidence_images %}
-                            <div class="col-md-4 mb-3">
-                                <div class="card" style="height: 100%;">
-                                    {% if image.source_url %}
-                                        <img src="{{ image.source_url }}" alt="{{ image.desc_image|default:'Image' }}" class="card-img-top" style="height: 200px; object-fit: cover;">
-                                    {% else %}
-                                        <div class="card-img-top" style="height: 200px; background: #f0f0f0; display: flex; align-items: center; justify-content: center;">
-                                            <i class="fas fa-image" style="font-size: 2rem; color: #ccc;"></i>
+                    <h6 class="mb-3"><i class="fas fa-image"></i> Immagini ({{ evidence_images|length }})</h6>
+                    {% for image in evidence_images %}
+                        <div class="detail-item mb-2" style="cursor: pointer;" onclick="toggleDetails('image-{{ forloop.counter }}')">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong><i class="fas fa-camera"></i> {{ image.desc_image|default:"Image #"|add:image.id }}</strong>
+                                <i class="fas fa-chevron-down" id="image-{{ forloop.counter }}-icon"></i>
+                            </div>
+                            <div class="text-muted small mt-1">
+                                {% if image.id_image_type %}{{ image.id_image_type }}{% endif %}
+                                {% if image.author %} - {{ image.author }}{% endif %}
+                            </div>
+                            <div id="image-{{ forloop.counter }}" class="detail-content mt-2" style="display: none;">
+                                <div class="row align-items-center">
+                                    <div class="col-md-4">
+                                        {% if image.source_url %}
+                                            <img src="{{ image.source_url }}" alt="{{ image.desc_image|default:'Image' }}" class="img-fluid rounded" style="max-height: 200px; width: 100%; object-fit: cover;">
+                                        {% else %}
+                                            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 200px;">
+                                                <i class="fas fa-image fa-3x text-muted"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="row">
+                                            {% if image.desc_image %}<div class="col-md-12"><strong>Descrizione:</strong> {{ image.desc_image }}</div>{% endif %}
+                                            {% if image.id_image_type %}<div class="col-md-6 mt-2"><strong>Tipo:</strong> {{ image.id_image_type }}</div>{% endif %}
+                                            {% if image.id_image_scale %}<div class="col-md-6 mt-2"><strong>Scala:</strong> {{ image.id_image_scale }}</div>{% endif %}
+                                            {% if image.author %}<div class="col-md-6 mt-2"><strong>Autore:</strong> {{ image.author }}</div>{% endif %}
+                                            {% if image.source_url %}
+                                                <div class="col-md-12 mt-2">
+                                                    <a href="{{ image.source_url }}" class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener">
+                                                        <i class="fas fa-external-link-alt"></i> Visualizza immagine
+                                                    </a>
+                                                </div>
+                                            {% endif %}
                                         </div>
-                                    {% endif %}
-                                    <div class="card-body">
-                                        <h6 class="card-title">{{ image.desc_image|default:"Image #"|add:image.id }}</h6>
-                                        {% if image.id_image_type %}<span class="badge bg-info">{{ image.id_image_type }}</span>{% endif %}
-                                        {% if image.id_image_scale %}<span class="badge bg-secondary">{{ image.id_image_scale }}</span>{% endif %}
-                                        {% if image.author %}<div class="text-muted small">{{ image.author }}</div>{% endif %}
-                                        {% if image.source_url %}<a href="{{ image.source_url }}" class="btn btn-sm btn-outline-primary mt-2" target="_blank" rel="noopener">View</a>{% endif %}
                                     </div>
                                 </div>
                             </div>
-                        {% endfor %}
-                    </div>
+                        </div>
+                    {% endfor %}
                 {% endif %}
             </div>
 
             <!-- Notes Tab -->
             <div id="notes" class="tab-content">
-                {% if evidence.notes %}
-                    <p><i class="fas fa-sticky-note"></i> {{ evidence.notes }}</p>
-                {% else %}
-                    <p class="text-muted">No notes recorded.</p>
-                {% endif %}
+                <div class="detail-row">
+                    {% if evidence.notes %}
+                        <div class="detail-item">
+                            <strong><i class="fas fa-sticky-note"></i> Notes</strong>
+                            <div class="mt-2">{{ evidence.notes|linebreaksbr }}</div>
+                        </div>
+                    {% else %}
+                        <div class="detail-item text-muted">
+                            <strong><i class="fas fa-sticky-note"></i> Notes</strong>
+                            <div class="mt-2">No notes recorded.</div>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
 
         </div>
@@ -200,15 +269,62 @@
 </div>
 
 <script>
-function showTab(evt, tabName) {
-  const tabContents = document.querySelectorAll('.tab-content');
-  tabContents.forEach(tc => tc.classList.remove('active'));
-  
-  const tabButtons = document.querySelectorAll('.detail-tab');
-  tabButtons.forEach(tb => tb.classList.remove('active'));
-  
-  document.getElementById(tabName).classList.add('active');
-  evt.currentTarget.classList.add('active');
+function toggleDetails(id) {
+    const content = document.getElementById(id);
+    const icon = document.getElementById(id + '-icon');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+    } else {
+        content.style.display = 'none';
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+    }
 }
+
+function initLeafletMap(divId) {
+    const el = document.getElementById(divId);
+    if (!el) return;
+    if (el._leaflet_map) {
+        setTimeout(() => el._leaflet_map.invalidateSize(true), 50);
+        return;
+    }
+    const lat = parseFloat(el.dataset.lat);
+    const lon = parseFloat(el.dataset.lon);
+    if (isNaN(lat) || isNaN(lon)) return;
+    const map = L.map(divId);
+    el._leaflet_map = map;
+    const marker = L.marker([lat, lon]).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    map.setView([lat, lon], 13);
+    setTimeout(() => map.invalidateSize(true), 50);
+}
+
+function showTab(evt, tabName) {
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabContents.forEach(tc => tc.classList.remove('active'));
+  
+    const tabButtons = document.querySelectorAll('.detail-tab');
+    tabButtons.forEach(tb => tb.classList.remove('active'));
+  
+    const tab = document.getElementById(tabName);
+    tab.classList.add('active');
+    evt.currentTarget.classList.add('active');
+
+    if (tabName === 'pos') {
+        initLeafletMap('evidence-map');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const posTab = document.getElementById('pos');
+    if (posTab && posTab.classList.contains('active')) {
+        initLeafletMap('evidence-map');
+    }
+});
 </script>
 {% endblock %}
