@@ -2483,62 +2483,59 @@ def import_database(request):
                 tmp_dec.write(gz_in.read())
     # Get DB credentials
     from django.conf import settings
+    import psycopg2
+    from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+    
     db_name = os.environ.get('DB_NAME', getattr(settings, 'DATABASES', {}).get('default', {}).get('NAME'))
     db_user = os.environ.get('DB_USER', getattr(settings, 'DATABASES', {}).get('default', {}).get('USER'))
     db_password = os.environ.get('DB_PASSWORD', getattr(settings, 'DATABASES', {}).get('default', {}).get('PASSWORD'))
     db_host = os.environ.get('DB_HOST', getattr(settings, 'DATABASES', {}).get('default', {}).get('HOST', 'localhost'))
     db_port = os.environ.get('DB_PORT', getattr(settings, 'DATABASES', {}).get('default', {}).get('PORT', '5432'))
     
-    # For DB creation/drop operations, use postgres superuser via sudo (peer authentication)
     env = os.environ.copy()
     env['PGPASSWORD'] = db_password
     env['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
     
-    # Find command paths
-    sudo_cmd = shutil.which('sudo', path=env['PATH']) or '/usr/bin/sudo'
-    psql_cmd = shutil.which('psql', path=env['PATH']) or '/usr/bin/psql'
-    createdb_cmd = shutil.which('createdb', path=env['PATH']) or '/usr/bin/createdb'
-    dropdb_cmd = shutil.which('dropdb', path=env['PATH']) or '/usr/bin/dropdb'
-    
-    # Drop and recreate DB (dangerous!)
+    # Drop and recreate DB using psycopg2 (no sudo needed, shareland_user has CREATEDB)
     try:
-        # Terminate connections using postgres superuser (via sudo for peer auth)
-        term = subprocess.run([
-            sudo_cmd, '-u', 'postgres', psql_cmd,
-            '-c', f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' AND pid <> pg_backend_pid();"
-        ], env=env, capture_output=True, text=True)
-        if term.returncode != 0:
-            raise Exception(term.stderr)
-
-        drop = subprocess.run([
-            sudo_cmd, '-u', 'postgres', dropdb_cmd, db_name
-        ], env=env, capture_output=True, text=True)
-        if drop.returncode != 0:
-            raise Exception(drop.stderr)
-
-        create = subprocess.run([
-            sudo_cmd, '-u', 'postgres', createdb_cmd, db_name
-        ], env=env, capture_output=True, text=True)
-        if create.returncode != 0:
-            raise Exception(create.stderr)
+        # Connect to postgres database to drop/create shareland_db
+        conn = psycopg2.connect(
+            dbname='postgres',
+            user=db_user,
+            password=db_password,
+            host=db_host,
+            port=db_port
+        )
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        cursor = conn.cursor()
         
-        # Grant permissions to shareland_user
-        grant = subprocess.run([
-            sudo_cmd, '-u', 'postgres', psql_cmd,
-            '-c', f"GRANT ALL PRIVILEGES ON DATABASE {db_name} TO {db_user};"
-        ], env=env, capture_output=True, text=True)
-        if grant.returncode != 0:
-            raise Exception(grant.stderr)
+        # Terminate existing connections
+        cursor.execute(f"""
+            SELECT pg_terminate_backend(pg_stat_activity.pid)
+            FROM pg_stat_activity
+            WHERE pg_stat_activity.datname = '{db_name}'
+            AND pid <> pg_backend_pid();
+        """)
+        
+        # Drop and recreate database
+        cursor.execute(f"DROP DATABASE IF EXISTS {db_name};")
+        cursor.execute(f"CREATE DATABASE {db_name} OWNER {db_user};")
+        
+        cursor.close()
+        conn.close()
 
-        # Restore
+        # Restore using pg_restore or psql
         restore_target = decompressed_path or tmp_path
+        psql_cmd = shutil.which('psql', path=env['PATH']) or '/usr/bin/psql'
+        pg_restore_cmd = shutil.which('pg_restore', path=env['PATH']) or '/usr/bin/pg_restore'
+        
         if backup_file.name.endswith('.sql') or (is_gzip and backup_file.name.endswith('.sql.gz')):
             restore_cmd = [
-                'psql', '-U', db_user, '-h', db_host, '-p', str(db_port), '-d', db_name, '-f', restore_target
+                psql_cmd, '-U', db_user, '-h', db_host, '-p', str(db_port), '-d', db_name, '-f', restore_target
             ]
         else:
             restore_cmd = [
-                'pg_restore', '-U', db_user, '-h', db_host, '-p', str(db_port), '-d', db_name, restore_target
+                pg_restore_cmd, '-U', db_user, '-h', db_host, '-p', str(db_port), '-d', db_name, restore_target
             ]
 
         restore = subprocess.run(restore_cmd, env=env, capture_output=True, text=True)
@@ -2549,7 +2546,7 @@ def import_database(request):
                     sql_path = tmp_sql.name
                 # Convert to plain SQL
                 conv = subprocess.run([
-                    'pg_restore', '-U', db_user, '-h', db_host, '-p', str(db_port),
+                    pg_restore_cmd, '-U', db_user, '-h', db_host, '-p', str(db_port),
                     '-f', sql_path, restore_target
                 ], env=env, capture_output=True, text=True)
                 if conv.returncode != 0:
@@ -2564,7 +2561,7 @@ def import_database(request):
                         f.write(line)
                 # Apply via psql
                 restore2 = subprocess.run([
-                    'psql', '-U', db_user, '-h', db_host, '-p', str(db_port), '-d', db_name, '-f', sql_path
+                    psql_cmd, '-U', db_user, '-h', db_host, '-p', str(db_port), '-d', db_name, '-f', sql_path
                 ], env=env, capture_output=True, text=True)
                 if restore2.returncode != 0:
                     raise Exception(restore.stderr + "\n" + restore2.stderr)
