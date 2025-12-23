@@ -2487,29 +2487,40 @@ def import_database(request):
     db_password = os.environ.get('DB_PASSWORD', getattr(settings, 'DATABASES', {}).get('default', {}).get('PASSWORD'))
     db_host = os.environ.get('DB_HOST', getattr(settings, 'DATABASES', {}).get('default', {}).get('HOST', 'localhost'))
     db_port = os.environ.get('DB_PORT', getattr(settings, 'DATABASES', {}).get('default', {}).get('PORT', '5432'))
+    
+    # For DB creation/drop operations, use postgres superuser (local connection, no password needed)
     env = os.environ.copy()
     env['PGPASSWORD'] = db_password
+    
     # Drop and recreate DB (dangerous!)
     try:
-        # Terminate connections
+        # Terminate connections using postgres superuser
         term = subprocess.run([
-            'psql', '-U', db_user, '-h', db_host, '-p', str(db_port),
+            'psql', '-U', 'postgres', '-h', db_host, '-p', str(db_port),
             '-c', f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' AND pid <> pg_backend_pid();"
-        ], env=env, capture_output=True, text=True)
+        ], capture_output=True, text=True)
         if term.returncode != 0:
             raise Exception(term.stderr)
 
         drop = subprocess.run([
-            'dropdb', '-U', db_user, '-h', db_host, '-p', str(db_port), db_name
-        ], env=env, capture_output=True, text=True)
+            'dropdb', '-U', 'postgres', '-h', db_host, '-p', str(db_port), db_name
+        ], capture_output=True, text=True)
         if drop.returncode != 0:
             raise Exception(drop.stderr)
 
         create = subprocess.run([
-            'createdb', '-U', db_user, '-h', db_host, '-p', str(db_port), db_name
-        ], env=env, capture_output=True, text=True)
+            'createdb', '-U', 'postgres', '-h', db_host, '-p', str(db_port), db_name
+        ], capture_output=True, text=True)
         if create.returncode != 0:
             raise Exception(create.stderr)
+        
+        # Grant permissions to shareland_user
+        grant = subprocess.run([
+            'psql', '-U', 'postgres', '-h', db_host, '-p', str(db_port),
+            '-c', f"GRANT ALL PRIVILEGES ON DATABASE {db_name} TO {db_user};"
+        ], capture_output=True, text=True)
+        if grant.returncode != 0:
+            raise Exception(grant.stderr)
 
         # Restore
         restore_target = decompressed_path or tmp_path
