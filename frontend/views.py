@@ -2496,27 +2496,27 @@ def import_database(request):
     try:
         # Terminate connections using postgres superuser (via sudo for peer auth)
         term = subprocess.run([
-            'sudo', '-u', 'postgres', 'psql',
+            '/usr/bin/sudo', '-u', 'postgres', '/usr/bin/psql',
             '-c', f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' AND pid <> pg_backend_pid();"
         ], capture_output=True, text=True)
         if term.returncode != 0:
             raise Exception(term.stderr)
 
         drop = subprocess.run([
-            'sudo', '-u', 'postgres', 'dropdb', db_name
+            '/usr/bin/sudo', '-u', 'postgres', '/usr/bin/dropdb', db_name
         ], capture_output=True, text=True)
         if drop.returncode != 0:
             raise Exception(drop.stderr)
 
         create = subprocess.run([
-            'sudo', '-u', 'postgres', 'createdb', db_name
+            '/usr/bin/sudo', '-u', 'postgres', '/usr/bin/createdb', db_name
         ], capture_output=True, text=True)
         if create.returncode != 0:
             raise Exception(create.stderr)
         
         # Grant permissions to shareland_user
         grant = subprocess.run([
-            'sudo', '-u', 'postgres', 'psql',
+            '/usr/bin/sudo', '-u', 'postgres', '/usr/bin/psql',
             '-c', f"GRANT ALL PRIVILEGES ON DATABASE {db_name} TO {db_user};"
         ], capture_output=True, text=True)
         if grant.returncode != 0:
