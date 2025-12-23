@@ -2462,6 +2462,7 @@ def import_database(request):
     """
     import tempfile
     import gzip
+    import shutil
     backup_file = request.FILES.get('backup_file')
     if not backup_file:
         return HttpResponse("No file uploaded.", status=400)
@@ -2491,34 +2492,41 @@ def import_database(request):
     # For DB creation/drop operations, use postgres superuser via sudo (peer authentication)
     env = os.environ.copy()
     env['PGPASSWORD'] = db_password
+    env['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+    
+    # Find command paths
+    sudo_cmd = shutil.which('sudo', path=env['PATH']) or '/usr/bin/sudo'
+    psql_cmd = shutil.which('psql', path=env['PATH']) or '/usr/bin/psql'
+    createdb_cmd = shutil.which('createdb', path=env['PATH']) or '/usr/bin/createdb'
+    dropdb_cmd = shutil.which('dropdb', path=env['PATH']) or '/usr/bin/dropdb'
     
     # Drop and recreate DB (dangerous!)
     try:
         # Terminate connections using postgres superuser (via sudo for peer auth)
         term = subprocess.run([
-            '/usr/bin/sudo', '-u', 'postgres', '/usr/bin/psql',
+            sudo_cmd, '-u', 'postgres', psql_cmd,
             '-c', f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' AND pid <> pg_backend_pid();"
-        ], capture_output=True, text=True)
+        ], env=env, capture_output=True, text=True)
         if term.returncode != 0:
             raise Exception(term.stderr)
 
         drop = subprocess.run([
-            '/usr/bin/sudo', '-u', 'postgres', '/usr/bin/dropdb', db_name
-        ], capture_output=True, text=True)
+            sudo_cmd, '-u', 'postgres', dropdb_cmd, db_name
+        ], env=env, capture_output=True, text=True)
         if drop.returncode != 0:
             raise Exception(drop.stderr)
 
         create = subprocess.run([
-            '/usr/bin/sudo', '-u', 'postgres', '/usr/bin/createdb', db_name
-        ], capture_output=True, text=True)
+            sudo_cmd, '-u', 'postgres', createdb_cmd, db_name
+        ], env=env, capture_output=True, text=True)
         if create.returncode != 0:
             raise Exception(create.stderr)
         
         # Grant permissions to shareland_user
         grant = subprocess.run([
-            '/usr/bin/sudo', '-u', 'postgres', '/usr/bin/psql',
+            sudo_cmd, '-u', 'postgres', psql_cmd,
             '-c', f"GRANT ALL PRIVILEGES ON DATABASE {db_name} TO {db_user};"
-        ], capture_output=True, text=True)
+        ], env=env, capture_output=True, text=True)
         if grant.returncode != 0:
             raise Exception(grant.stderr)
 
