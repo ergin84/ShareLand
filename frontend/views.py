@@ -2541,7 +2541,16 @@ def import_database(request):
 
         restore = subprocess.run(restore_cmd, env=env, capture_output=True, text=True)
         if restore.returncode != 0:
-            # Fallback: handle transaction_timeout (or other) by converting to SQL and stripping problematic settings
+            # Check for unsupported version error - cannot be automatically fixed
+            if 'unsupported version' in restore.stderr:
+                raise Exception(
+                    f"The backup file format is not compatible with this PostgreSQL version.\n\n"
+                    f"Error: {restore.stderr}\n\n"
+                    f"Please re-export the backup from the source database using:\n"
+                    f"  pg_dump -U username -h host database_name > backup.sql\n\n"
+                    f"Then upload the .sql file instead."
+                )
+            # Fallback: handle transaction_timeout or other errors by converting to SQL
             if 'transaction_timeout' in restore.stderr:
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.sql') as tmp_sql:
                     sql_path = tmp_sql.name
@@ -2552,7 +2561,7 @@ def import_database(request):
                 ], env=env, capture_output=True, text=True)
                 if conv.returncode != 0:
                     raise Exception(restore.stderr + "\n" + conv.stderr)
-                # Strip problematic setting
+                # Strip problematic settings
                 with open(sql_path, 'r') as f:
                     lines = f.readlines()
                 with open(sql_path, 'w') as f:

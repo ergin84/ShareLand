@@ -828,3 +828,17 @@ Traceback (most recent call last):
     raise VariableDoesNotExist(
 django.template.base.VariableDoesNotExist: Failed lookup for key [title] in [{'True': True, 'False': False, 'None': None}, {}, {}, {'total_research': 3, 'total_sites': 7, 'total_evidence': 2, 'total_users': 13}]
 ERROR 2025-12-23 08:35:23,134 basehttp 7 140268865062592 "GET / HTTP/1.1" 500 161219
+ERROR 2025-12-23 14:37:05,333 log 302 140259503376064 Internal Server Error: /database-import/
+ERROR 2025-12-23 14:37:05,334 basehttp 302 140259503376064 "POST /database-import/ HTTP/1.1" 500 8951
+ERROR 2025-12-23 14:37:18,674 log 302 140259503376064 Internal Server Error: /database-import/
+ERROR 2025-12-23 14:37:18,675 basehttp 302 140259503376064 "POST /database-import/ HTTP/1.1" 500 8951
+ERROR 2025-12-23 14:39:04,709 log 317 140488652883648 Internal Server Error: /database-import/
+ERROR 2025-12-23 14:39:04,710 basehttp 317 140488652883648 "POST /database-import/ HTTP/1.1" 500 8851
+ERROR 2025-12-23 14:39:17,184 log 317 140488652883648 Internal Server Error: /database-import/
+ERROR 2025-12-23 14:39:17,184 basehttp 317 140488652883648 "POST /database-import/ HTTP/1.1" 500 8851
+ERROR 2025-12-23 14:40:44,687 log 331 140216075552448 Internal Server Error: /database-import/
+ERROR 2025-12-23 14:40:44,688 basehttp 331 140216075552448 "POST /database-import/ HTTP/1.1" 500 8860
+ERROR 2025-12-23 14:43:03,704 log 355 140146479466176 Internal Server Error: /database-import/
+ERROR 2025-12-23 14:43:03,704 basehttp 355 140146479466176 "POST /database-import/ HTTP/1.1" 500 8860
+ERROR 2025-12-23 14:43:20,207 log 355 140146479466176 Internal Server Error: /database-import/
+ERROR 2025-12-23 14:43:20,208 basehttp 355 140146479466176 "POST /database-import/ HTTP/1.1" 500 8860
