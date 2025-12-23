@@ -277,11 +277,11 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Investigation',
             fields=[
-                ('id', models.IntegerField()),
+                ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('project_name', models.TextField(blank=True, null=True)),
                 ('period', models.TextField(blank=True, null=True)),
                 ('id_investigation_type', models.IntegerField(blank=True, null=True)),
-                ('id_site', models.IntegerField(primary_key=True, serialize=False)),
+                ('id_site', models.IntegerField()),
             ],
             options={
                 'db_table': 'investigation',

@@ -87,11 +87,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterField(
             model_name='investigation',
-            name='id',
-            field=models.AutoField(primary_key=True, serialize=False),
-        ),
-        migrations.AlterField(
-            model_name='investigation',
             name='id_investigation_type',
             field=models.ForeignKey(blank=True, db_column='id_investigation_type', null=True, on_delete=django.db.models.deletion.SET_NULL, to='frontend.investigationtype'),
         ),
