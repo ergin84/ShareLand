@@ -2534,9 +2534,9 @@ def import_database(request):
                 psql_cmd, '-U', db_user, '-h', db_host, '-p', str(db_port), '-d', db_name, '-f', restore_target
             ]
         else:
-            # Use -O flag to skip owner restoration (allows non-owner to restore)
+            # Use -O (skip owner) and --no-privileges (skip privileges) to allow non-owner to restore
             restore_cmd = [
-                pg_restore_cmd, '-O', '-U', db_user, '-h', db_host, '-p', str(db_port), '-d', db_name, restore_target
+                pg_restore_cmd, '-O', '--no-privileges', '-U', db_user, '-h', db_host, '-p', str(db_port), '-d', db_name, restore_target
             ]
 
         restore = subprocess.run(restore_cmd, env=env, capture_output=True, text=True)
@@ -2545,9 +2545,9 @@ def import_database(request):
             if 'transaction_timeout' in restore.stderr:
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.sql') as tmp_sql:
                     sql_path = tmp_sql.name
-                # Convert to plain SQL (also skip owner with -O)
+                # Convert to plain SQL (also skip owner and privileges)
                 conv = subprocess.run([
-                    pg_restore_cmd, '-O', '-U', db_user, '-h', db_host, '-p', str(db_port),
+                    pg_restore_cmd, '-O', '--no-privileges', '-U', db_user, '-h', db_host, '-p', str(db_port),
                     '-f', sql_path, restore_target
                 ], env=env, capture_output=True, text=True)
                 if conv.returncode != 0:
