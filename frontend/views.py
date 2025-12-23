@@ -2488,35 +2488,35 @@ def import_database(request):
     db_host = os.environ.get('DB_HOST', getattr(settings, 'DATABASES', {}).get('default', {}).get('HOST', 'localhost'))
     db_port = os.environ.get('DB_PORT', getattr(settings, 'DATABASES', {}).get('default', {}).get('PORT', '5432'))
     
-    # For DB creation/drop operations, use postgres superuser (local connection, no password needed)
+    # For DB creation/drop operations, use postgres superuser via sudo (peer authentication)
     env = os.environ.copy()
     env['PGPASSWORD'] = db_password
     
     # Drop and recreate DB (dangerous!)
     try:
-        # Terminate connections using postgres superuser
+        # Terminate connections using postgres superuser (via sudo for peer auth)
         term = subprocess.run([
-            'psql', '-U', 'postgres', '-h', db_host, '-p', str(db_port),
+            'sudo', '-u', 'postgres', 'psql',
             '-c', f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' AND pid <> pg_backend_pid();"
         ], capture_output=True, text=True)
         if term.returncode != 0:
             raise Exception(term.stderr)
 
         drop = subprocess.run([
-            'dropdb', '-U', 'postgres', '-h', db_host, '-p', str(db_port), db_name
+            'sudo', '-u', 'postgres', 'dropdb', db_name
         ], capture_output=True, text=True)
         if drop.returncode != 0:
             raise Exception(drop.stderr)
 
         create = subprocess.run([
-            'createdb', '-U', 'postgres', '-h', db_host, '-p', str(db_port), db_name
+            'sudo', '-u', 'postgres', 'createdb', db_name
         ], capture_output=True, text=True)
         if create.returncode != 0:
             raise Exception(create.stderr)
         
         # Grant permissions to shareland_user
         grant = subprocess.run([
-            'psql', '-U', 'postgres', '-h', db_host, '-p', str(db_port),
+            'sudo', '-u', 'postgres', 'psql',
             '-c', f"GRANT ALL PRIVILEGES ON DATABASE {db_name} TO {db_user};"
         ], capture_output=True, text=True)
         if grant.returncode != 0:
