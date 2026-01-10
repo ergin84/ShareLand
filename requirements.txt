@@ -20,5 +20,6 @@ sqlparse==0.5.3
 tzdata==2025.2
 python-dotenv~=1.1.0
 gunicorn
+whitenoise
 folium==0.15.1
 psutil==5.9.8

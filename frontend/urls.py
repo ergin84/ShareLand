@@ -51,6 +51,14 @@ urlpatterns = [
     path('database-export/', views.export_database, name='export_database'),
     path('database-import/', views.import_database, name='import_database'),
     
+    # API endpoints for relations
+    path('api/sites/', views.api_sites_list, name='api-sites-list'),
+    path('api/evidence/', views.api_evidence_list, name='api-evidence-list'),
+    path('api/site-research/', views.api_site_research_create, name='api-site-research-create'),
+    path('api/site-evidence/', views.api_site_evidence_create, name='api-site-evidence-create'),
+    path('api/research-evidence/', views.api_research_evidence_create, name='api-research-evidence-create'),
+    path('api/debug/', views.api_debug_data, name='api-debug-data'),
+    
     # Health check endpoints
     path('health/', health_check, name='health_check'),
     path('health/ready/', readiness_check, name='readiness_check'),

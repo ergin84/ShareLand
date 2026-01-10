@@ -8,14 +8,16 @@ def register(request):
     if request.method == 'POST':
         form = UserRegisterForm(request.POST)
         if form.is_valid():
+            # Map custom form fields to User model
             user = form.save(commit=False)
+            user.email = form.cleaned_data.get('email', '')
+            user.first_name = form.cleaned_data.get('name', '')
+            user.last_name = form.cleaned_data.get('surname', '')
             user.is_active = False  # 🔒 User must be activated by admin
             user.save()
-            
-            # Save profile fields
+
+            # Save profile fields (without name/surname; use User's names)
             profile = user.profile
-            profile.name = form.cleaned_data.get('name', '')
-            profile.surname = form.cleaned_data.get('surname', '')
             profile.affiliation = form.cleaned_data.get('affiliation', '') or None
             profile.orcid = form.cleaned_data.get('orcid', '') or None
             profile.save()

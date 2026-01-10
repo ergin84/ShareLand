@@ -2604,3 +2604,235 @@ def import_database(request):
             'file_name': backup_file.name if backup_file else ''
         }, status=500)
 
+
+# API endpoints for modal selectors
+def api_sites_list(request):
+    """API endpoint to get list of all sites"""
+    try:
+        # Fetch ALL sites from database using model instances
+        sites_query = Site.objects.all().order_by('site_name')
+        
+        print(f"[API] Total sites in database: {sites_query.count()}")
+        
+        sites_list = []
+        for site in sites_query:
+            site_display = {
+                'id': site.id,
+                'site_name': site.site_name if site.site_name else f"Site #{site.id}",
+                'locality_name': site.locality_name if hasattr(site, 'locality_name') else ''
+            }
+            sites_list.append(site_display)
+            print(f"[API] Added site: {site_display}")
+        
+        print(f"[API] Total sites to return: {len(sites_list)}")
+        
+        return JsonResponse({
+            'success': True,
+            'count': len(sites_list),
+            'results': sites_list
+        })
+    except Exception as e:
+        import traceback
+        print(f"[API ERROR] {str(e)}")
+        traceback.print_exc()
+        return JsonResponse({
+            'error': str(e), 
+            'success': False
+        }, status=500)
+
+
+def api_evidence_list(request):
+    """API endpoint to get list of all archaeological evidence"""
+    try:
+        # Fetch ALL archaeological evidence from database using model instances
+        evidence_query = ArchaeologicalEvidence.objects.all().order_by('evidence_name')
+        
+        print(f"[API] Total evidence in database: {evidence_query.count()}")
+        
+        evidence_list = []
+        for evidence in evidence_query:
+            evidence_display = {
+                'id': evidence.id,
+                'evidence_name': evidence.evidence_name if evidence.evidence_name else f"Evidence #{evidence.id}",
+                'description': evidence.description if hasattr(evidence, 'description') else ''
+            }
+            evidence_list.append(evidence_display)
+            print(f"[API] Added evidence: {evidence_display}")
+        
+        print(f"[API] Total evidence to return: {len(evidence_list)}")
+        
+        return JsonResponse({
+            'success': True,
+            'count': len(evidence_list),
+            'results': evidence_list
+        })
+    except Exception as e:
+        import traceback
+        print(f"[API ERROR] {str(e)}")
+        traceback.print_exc()
+        return JsonResponse({
+            'error': str(e), 
+            'success': False
+        }, status=500)
+
+
+def api_site_research_create(request):
+    """API endpoint to create a SiteResearch relation"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    if not request.user.is_authenticated or (not request.user.is_staff and not request.user.is_superuser):
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        import json
+        data = json.loads(request.body)
+        
+        site_id = data.get('id_site')
+        research_id = data.get('id_research')
+        
+        if not site_id or not research_id:
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+        
+        # Check if relation already exists
+        if SiteResearch.objects.filter(id_site=site_id, id_research=research_id).exists():
+            return JsonResponse({'error': 'This site is already linked to this research'}, status=400)
+        
+        # Create the relation
+        site_research = SiteResearch(id_site_id=site_id, id_research_id=research_id)
+        site_research.full_clean()
+        site_research.save()
+        
+        return JsonResponse({'success': True, 'id': site_research.id})
+    except ValidationError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    except Site.DoesNotExist:
+        return JsonResponse({'error': 'Site not found'}, status=404)
+    except Research.DoesNotExist:
+        return JsonResponse({'error': 'Research not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+def api_site_evidence_create(request):
+    """API endpoint to create a SiteArchEvidence relation"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    if not request.user.is_authenticated or (not request.user.is_staff and not request.user.is_superuser):
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        import json
+        data = json.loads(request.body)
+        
+        site_id = data.get('id_site')
+        evidence_id = data.get('id_archaeological_evidence')
+        
+        if not site_id or not evidence_id:
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+        
+        # Check if relation already exists
+        if SiteArchEvidence.objects.filter(id_site=site_id, id_archaeological_evidence=evidence_id).exists():
+            return JsonResponse({'error': 'This evidence is already linked to this site'}, status=400)
+        
+        # Create the relation
+        site_evidence = SiteArchEvidence(id_site_id=site_id, id_archaeological_evidence_id=evidence_id)
+        site_evidence.full_clean()
+        site_evidence.save()
+        
+        return JsonResponse({'success': True, 'id': site_evidence.id})
+    except ValidationError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    except Site.DoesNotExist:
+        return JsonResponse({'error': 'Site not found'}, status=404)
+    except ArchaeologicalEvidence.DoesNotExist:
+        return JsonResponse({'error': 'Evidence not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+def api_research_evidence_create(request):
+    """API endpoint to create an ArchEvResearch relation"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    if not request.user.is_authenticated or (not request.user.is_staff and not request.user.is_superuser):
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        import json
+        data = json.loads(request.body)
+        
+        print(f"[API DEBUG] Received data: {data}")
+        
+        research_id = data.get('id_research')
+        evidence_id = data.get('id_archaeological_evidence')
+        
+        print(f"[API DEBUG] research_id: {research_id}, evidence_id: {evidence_id}")
+        
+        if not research_id or not evidence_id:
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+        
+        # Verify the research exists
+        try:
+            research = Research.objects.get(id=research_id)
+        except Research.DoesNotExist:
+            return JsonResponse({'error': 'Research not found'}, status=404)
+        
+        # Verify the evidence exists
+        try:
+            evidence = ArchaeologicalEvidence.objects.get(id=evidence_id)
+        except ArchaeologicalEvidence.DoesNotExist:
+            return JsonResponse({'error': 'Evidence not found'}, status=404)
+        
+        # Check if relation already exists
+        if ArchEvResearch.objects.filter(id_research=research_id, id_archaeological_evidence=evidence_id).exists():
+            return JsonResponse({'error': 'This evidence is already linked to this research'}, status=400)
+        
+        # Create the relation - id_research is IntegerField, id_archaeological_evidence is ForeignKey
+        research_evidence = ArchEvResearch(
+            id_research=research_id,
+            id_archaeological_evidence=evidence
+        )
+        research_evidence.save()
+        
+        print(f"[API DEBUG] Successfully created relation: {research_evidence.id}")
+        
+        return JsonResponse({'success': True, 'id': research_evidence.id})
+    except ValidationError as e:
+        print(f"[API ERROR] ValidationError: {e}")
+        return JsonResponse({'error': str(e)}, status=400)
+    except Exception as e:
+        import traceback
+        print(f"[API ERROR] Unexpected error: {str(e)}")
+        traceback.print_exc()
+        return JsonResponse({'error': str(e)}, status=500)
+
+def api_debug_data(request):
+    """Debug endpoint to check data availability"""
+    try:
+        sites_count = Site.objects.count()
+        evidence_count = ArchaeologicalEvidence.objects.count()
+        
+        first_5_sites = list(Site.objects.all()[:5].values('id', 'site_name', 'locality_name'))
+        first_5_evidence = list(ArchaeologicalEvidence.objects.all()[:5].values('id', 'evidence_name', 'description'))
+        
+        return JsonResponse({
+            'database_status': 'connected',
+            'sites': {
+                'total_count': sites_count,
+                'first_5': first_5_sites
+            },
+            'evidence': {
+                'total_count': evidence_count,
+                'first_5': first_5_evidence
+            }
+        })
+    except Exception as e:
+        import traceback
+        print(f"[DEBUG ERROR] {str(e)}")
+        traceback.print_exc()
+        return JsonResponse({
+            'error': str(e),
+            'status': 'error'
+        }, status=500)
